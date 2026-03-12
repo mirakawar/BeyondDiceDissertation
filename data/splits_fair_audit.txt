@@ -1,0 +1,73 @@
+Split fairness audit v2
+split_json=/home/s2292949/dissertation_resplit/data/splits_fair.json
+
+## Overall
+  sample_leakage=PASS (no_overlap=True)
+  sample_targets={'train': 415, 'val': 89, 'test': 89}
+  slice_targets={'train': 15309.7, 'val': 3280.7, 'test': 3280.7}
+
+## train
+  sample_count=415 target=415 (PASS)
+  slice_count=15312 target=15309.7 rel_dev=0.02% (PASS)
+  largest_sample=Wei2020_MitoEM-H (3829 slices, 25.01% of split) (PASS)
+  high_density_slices=12.37%
+  mean_fg_ratio: sample_mean=0.0486 sample_z=0.008 (PASS), slice_weighted_mean=0.0539 slice_z=0.000 (PASS)
+  mean_instances: sample_mean=4.9877 sample_z=0.025 (PASS), slice_weighted_mean=6.0732 slice_z=0.026 (PASS)
+  empty_rate: sample_mean=0.2930 sample_z=0.018 (PASS), slice_weighted_mean=0.1728 slice_z=0.017 (PASS)
+  type[2D]: sample_prop=0.195 delta=0.003 (INFO), slice_prop=0.137 delta=0.004 (INFO)
+  type[3D]: sample_prop=0.581 delta=0.004 (INFO), slice_prop=0.312 delta=0.215 (INFO)
+  type[other]: sample_prop=0.224 delta=0.001 (INFO), slice_prop=0.552 delta=0.219 (INFO)
+  res[large]: sample_prop=0.178 delta=0.022 (INFO), slice_prop=0.676 delta=0.431 (INFO)
+  res[medium]: sample_prop=0.776 delta=0.013 (INFO), slice_prop=0.281 delta=0.404 (INFO)
+  res[small]: sample_prop=0.046 delta=0.009 (INFO), slice_prop=0.043 delta=0.027 (INFO)
+  density[high]: sample_prop=0.087 delta=0.007 (INFO), slice_prop=0.061 delta=0.086 (INFO)
+  density[normal]: sample_prop=0.913 delta=0.007 (INFO), slice_prop=0.939 delta=0.086 (INFO)
+
+## val
+  sample_count=89 target=89 (PASS)
+  slice_count=3247 target=3280.7 rel_dev=1.03% (PASS)
+  largest_sample=kasthuri2011 (530 slices, 16.32% of split) (PASS)
+  high_density_slices=12.63%
+  mean_fg_ratio: sample_mean=0.0520 sample_z=0.060 (PASS), slice_weighted_mean=0.0529 slice_z=0.025 (PASS)
+  mean_instances: sample_mean=4.5651 sample_z=0.052 (PASS), slice_weighted_mean=6.3231 slice_z=0.031 (PASS)
+  empty_rate: sample_mean=0.2738 sample_z=0.043 (PASS), slice_weighted_mean=0.1842 slice_z=0.034 (PASS)
+  type[2D]: sample_prop=0.180 delta=0.012 (PASS), slice_prop=0.149 delta=0.008 (PASS)
+  type[3D]: sample_prop=0.596 delta=0.010 (PASS), slice_prop=0.539 delta=0.012 (PASS)
+  type[other]: sample_prop=0.225 delta=0.002 (PASS), slice_prop=0.312 delta=0.020 (PASS)
+  res[large]: sample_prop=0.135 delta=0.022 (PASS), slice_prop=0.305 delta=0.059 (PASS)
+  res[medium]: sample_prop=0.798 delta=0.009 (PASS), slice_prop=0.663 delta=0.023 (PASS)
+  res[small]: sample_prop=0.067 delta=0.013 (PASS), slice_prop=0.033 delta=0.037 (PASS)
+  density[high]: sample_prop=0.124 delta=0.030 (PASS), slice_prop=0.083 delta=0.064 (PASS)
+  density[normal]: sample_prop=0.876 delta=0.030 (PASS), slice_prop=0.917 delta=0.064 (PASS)
+
+## test
+  sample_count=89 target=89 (PASS)
+  slice_count=3312 target=3280.7 rel_dev=0.96% (PASS)
+  largest_sample=Bleck2018_SoleusBV2 (600 slices, 18.12% of split) (PASS)
+  high_density_slices=20.59%
+  mean_fg_ratio: sample_mean=0.0480 sample_z=0.021 (PASS), slice_weighted_mean=0.0548 slice_z=0.023 (PASS)
+  mean_instances: sample_mean=4.4868 sample_z=0.066 (PASS), slice_weighted_mean=6.5704 slice_z=0.088 (PASS)
+  empty_rate: sample_mean=0.2750 sample_z=0.040 (PASS), slice_weighted_mean=0.1866 slice_z=0.044 (PASS)
+  type[2D]: sample_prop=0.191 delta=0.001 (PASS), slice_prop=0.064 delta=0.077 (PASS)
+  type[3D]: sample_prop=0.584 delta=0.001 (PASS), slice_prop=0.542 delta=0.015 (PASS)
+  type[other]: sample_prop=0.225 delta=0.002 (PASS), slice_prop=0.394 delta=0.062 (PASS)
+  res[large]: sample_prop=0.124 delta=0.033 (PASS), slice_prop=0.311 delta=0.066 (PASS)
+  res[medium]: sample_prop=0.798 delta=0.009 (PASS), slice_prop=0.655 delta=0.031 (PASS)
+  res[small]: sample_prop=0.079 delta=0.024 (PASS), slice_prop=0.034 delta=0.035 (PASS)
+  density[high]: sample_prop=0.090 delta=0.004 (PASS), slice_prop=0.194 delta=0.048 (PASS)
+  density[normal]: sample_prop=0.910 delta=0.004 (PASS), slice_prop=0.806 delta=0.048 (PASS)
+
+## Family cohesion
+  All multi-member families fully contained within one split
+  split_families=0/27 (0.0% of named families split)
+
+## Verdict
+  overall=PASS
+  no_leakage=PASS
+  max_sample_feature_z=0.066 threshold=0.25
+  max_slice_feature_z=0.088 threshold=0.25
+  max_sample_prop_delta=0.033 threshold=0.07
+  max_slice_prop_delta=0.077 threshold=0.12
+  max_slice_ratio_deviation=1.03% threshold=5.00%
+  max_val_test_dominance=18.12% threshold=20.00%
+  split_families=0/27 (informational — cannot fully avoid with 89 val/test samples)

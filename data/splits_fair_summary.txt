@@ -1,0 +1,37 @@
+Fair split v2 generated
+output=/home/s2292949/dissertation_resplit/data/splits_fair.json
+seed=42  score=0.180739  dominance_cap=0.2
+blocked (5): ['314W440Y68Pf573BO3p2_3D', '5j54Gst6j5069xCUpF5M_2D', 'A03wIgkxVmFZNc082J2i_3D', 'Wei2020_MitoEM-H', 'Wei2020_MitoEM-R']
+
+train:
+  n_samples=415  n_images=15312
+  sample_mean_fg=0.0486  sample_mean_inst=4.9877  sample_empty_rate=0.2930
+  slice_empty_pct=17.28%  slice_fg_mean=0.0539  slice_fg_nonempty=0.0651
+  high_density_pct=12.37%
+  res_tier={"large": 74, "medium": 322, "small": 19}
+  density_tier={"high": 36, "normal": 379}
+  type={"2D": 81, "3D": 241, "other": 93}
+  largest=Wei2020_MitoEM-H (3829 slices, 25.01%)
+  split_families=[]
+
+val:
+  n_samples=89  n_images=3247
+  sample_mean_fg=0.0520  sample_mean_inst=4.5651  sample_empty_rate=0.2738
+  slice_empty_pct=18.42%  slice_fg_mean=0.0529  slice_fg_nonempty=0.0648
+  high_density_pct=12.63%
+  res_tier={"large": 12, "medium": 71, "small": 6}
+  density_tier={"high": 11, "normal": 78}
+  type={"2D": 16, "3D": 53, "other": 20}
+  largest=kasthuri2011 (530 slices, 16.32%)
+  split_families=['Bleck2018', 'Muller2020', 'Rudlaff2020', 'Yoshida2020', 'jrc_ctl']
+
+test:
+  n_samples=89  n_images=3312
+  sample_mean_fg=0.0480  sample_mean_inst=4.4868  sample_empty_rate=0.2750
+  slice_empty_pct=18.66%  slice_fg_mean=0.0548  slice_fg_nonempty=0.0674
+  high_density_pct=20.59%
+  res_tier={"large": 11, "medium": 71, "small": 7}
+  density_tier={"high": 8, "normal": 81}
+  type={"2D": 17, "3D": 52, "other": 20}
+  largest=Bleck2018_SoleusBV2 (600 slices, 18.12%)
+  split_families=['Bleck2018', 'Muller2020', 'Rudlaff2020', 'Yoshida2020', 'jrc_ctl']

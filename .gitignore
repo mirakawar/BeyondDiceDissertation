@@ -1,0 +1,65 @@
+# -----------------------------
+# Project-specific large data
+# -----------------------------
+data/cem_mitolab
+data/cem_mitolab/
+nnunet/nnUNet_raw
+nnunet/nnUNet_raw/
+nnunet/nnUNet_preprocessed
+nnunet/nnUNet_preprocessed/
+nnunet/nnUNet_results
+nnunet/nnUNet_results/
+predictions/
+samples/
+logs/
+evaluation/results/
+models/
+
+# Vendored external repository (not authored code)
+nnUNet
+nnUNet/
+
+# Generated figures and report artifacts
+figures/**/*.png
+/skeleton.aux
+/skeleton.fdb_latexmk
+/skeleton.fls
+/skeleton.log
+/ug/skeleton.aux
+/ug/skeleton.bbl
+/ug/skeleton.blg
+/ug/skeleton.fdb_latexmk
+/ug/skeleton.fls
+/ug/skeleton.log
+/ug/skeleton.out
+/ug/skeleton.pdf
+/ug/skeleton.toc
+
+# -----------------------------
+# ML artifacts
+# -----------------------------
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npz
+*.npy
+*.b2nd
+*.nii
+*.nii.gz
+*.pkl
+
+# -----------------------------
+# Python cache/env
+# -----------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# -----------------------------
+# Editor/system
+# -----------------------------
+.DS_Store
+.idea/
+.vscode/

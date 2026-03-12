@@ -1,0 +1,92 @@
+{
+  "dataset": {
+    "name": "CEM-MitoLab",
+    "empiar_id": "EMPIAR-11037",
+    "n_classes": 2,
+    "class_names": [
+      "background",
+      "mitochondria"
+    ],
+    "image_size": [
+      224,
+      224
+    ],
+    "pixel_spacing": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "total_slices": 21871,
+    "train_slices": 15312,
+    "val_slices": 3247,
+    "test_slices": 3312
+  },
+  "nnunet": {
+    "patch_size": [
+      512,
+      512
+    ],
+    "batch_size": 12,
+    "config": "2d",
+    "fold": 0,
+    "max_epochs": 1000,
+    "save_flag": "--npz"
+  },
+  "unet": {
+    "patch_size": [
+      512,
+      512
+    ],
+    "batch_size": 12,
+    "max_epochs": 1000,
+    "augmentation": false,
+    "early_stopping": {
+      "patience": 50,
+      "min_delta": 0.001
+    }
+  },
+  "shared": {
+    "random_seed": 42,
+    "early_stopping_patience": 50,
+    "early_stopping_delta": 0.001,
+    "max_epochs": 1000,
+    "prediction_threshold": 0.5,
+    "threshold_sensitivity": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "min_object_size_px": 10,
+    "hd95_units": "pixels",
+    "boundary_f1_tolerances": [
+      2,
+      5
+    ],
+    "object_iou_thresholds": [
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ]
+  },
+  "paths": {
+    "data_root": "/home/s2292949/dissertation_resplit/data/cem_mitolab",
+    "splits_json": "/home/s2292949/dissertation_resplit/data/splits.json",
+    "nnunet_id_map": "/home/s2292949/dissertation_resplit/data/nnunet_id_map.json",
+    "dataset_stats": "/home/s2292949/dissertation_resplit/data/dataset_stats.csv",
+    "nnunet_raw": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw",
+    "nnunet_preproc": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed",
+    "nnunet_results": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_results",
+    "instances_tr": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTr",
+    "instances_ts": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs",
+    "predictions_unet": "/home/s2292949/dissertation_resplit/predictions/unet",
+    "predictions_nnunet": "/home/s2292949/dissertation_resplit/predictions/nnunet",
+    "results_dir": "/home/s2292949/dissertation_resplit/evaluation/results",
+    "figures_dir": "/home/s2292949/dissertation_resplit/figures",
+    "logs_dir": "/home/s2292949/dissertation_resplit/logs",
+    "unet_checkpoint": "/home/s2292949/dissertation_resplit/models/unet/checkpoints",
+    "unet_training_log": "/home/s2292949/dissertation_resplit/models/unet/checkpoints/training_log.csv"
+  }
+}

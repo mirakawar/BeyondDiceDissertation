@@ -1,0 +1,109 @@
+Supervisor-guided resplit applied
+Moved sample(s): 5j54Gst6j5069xCUpF5M_2D
+Direction: test -> train
+Rows moved: 1018
+Case IDs updated: 1018
+
+Before:
+train:
+  n_images=14380
+  n_samples=415
+  empty_pct=17.64
+  fg_mean_nonempty=0.0624
+  fg_median_nonempty=0.0424
+  inst_mean_nonempty=7.77
+  inst_median_nonempty=6.00
+  slices_per_sample_mean=34.65
+  slices_per_sample_median=14.00
+  top_samples:
+    Wei2020_MitoEM-H: 3829
+    314W440Y68Pf573BO3p2_3D: 951
+    A03wIgkxVmFZNc082J2i_3D: 740
+    Bleck2018_SoleusBV2: 600
+    6M63zfgOdsi602Ow24O1_3D: 571
+
+val:
+  n_images=1814
+  n_samples=89
+  empty_pct=19.74
+  fg_mean_nonempty=0.0524
+  fg_median_nonempty=0.0394
+  inst_mean_nonempty=6.77
+  inst_median_nonempty=5.00
+  slices_per_sample_mean=20.38
+  slices_per_sample_median=15.00
+  top_samples:
+    UroCell: 536
+    Guay2020_patient1: 49
+    l2c4q87att1BVs01TL0J_3D: 35
+    W34ObM2QN5I2txM0DQA9_3D: 27
+    Q3cNG15zI741I2NS4uV8_2D: 26
+
+test:
+  n_images=5677
+  n_samples=89
+  empty_pct=17.03
+  fg_mean_nonempty=0.0770
+  fg_median_nonempty=0.0636
+  inst_mean_nonempty=7.09
+  inst_median_nonempty=6.00
+  slices_per_sample_mean=63.79
+  slices_per_sample_median=15.00
+  top_samples:
+    Wei2020_MitoEM-R: 2754
+    5j54Gst6j5069xCUpF5M_2D: 1018
+    66192geL1pz9144250OG_3D: 261
+    jrc_hela-3_openorganelle: 188
+    52f72Bc125o7v94Ep850_2D: 126
+
+After:
+train:
+  n_images=15398
+  n_samples=416
+  empty_pct=18.82
+  fg_mean_nonempty=0.0649
+  fg_median_nonempty=0.0432
+  inst_mean_nonempty=7.51
+  inst_median_nonempty=6.00
+  slices_per_sample_mean=37.01
+  slices_per_sample_median=14.00
+  top_samples:
+    Wei2020_MitoEM-H: 3829
+    5j54Gst6j5069xCUpF5M_2D: 1018
+    314W440Y68Pf573BO3p2_3D: 951
+    A03wIgkxVmFZNc082J2i_3D: 740
+    Bleck2018_SoleusBV2: 600
+
+val:
+  n_images=1814
+  n_samples=89
+  empty_pct=19.74
+  fg_mean_nonempty=0.0524
+  fg_median_nonempty=0.0394
+  inst_mean_nonempty=6.77
+  inst_median_nonempty=5.00
+  slices_per_sample_mean=20.38
+  slices_per_sample_median=15.00
+  top_samples:
+    UroCell: 536
+    Guay2020_patient1: 49
+    l2c4q87att1BVs01TL0J_3D: 35
+    W34ObM2QN5I2txM0DQA9_3D: 27
+    Q3cNG15zI741I2NS4uV8_2D: 26
+
+test:
+  n_images=4659
+  n_samples=88
+  empty_pct=13.01
+  fg_mean_nonempty=0.0718
+  fg_median_nonempty=0.0625
+  inst_mean_nonempty=7.79
+  inst_median_nonempty=7.00
+  slices_per_sample_mean=52.94
+  slices_per_sample_median=15.00
+  top_samples:
+    Wei2020_MitoEM-R: 2754
+    66192geL1pz9144250OG_3D: 261
+    jrc_hela-3_openorganelle: 188
+    52f72Bc125o7v94Ep850_2D: 126
+    perez2014: 55

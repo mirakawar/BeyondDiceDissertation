@@ -1,0 +1,6 @@
+Split metadata sync complete
+splits_json=/home/s2292949/dissertation_resplit/data/splits.json
+id_map_json=/home/s2292949/dissertation_resplit/data/nnunet_id_map.json
+changed_entries=10561
+missing_entries=0
+final_split_counts={'train': 15312, 'test': 3312, 'val': 3247}
