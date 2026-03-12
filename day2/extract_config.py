@@ -4,8 +4,9 @@ Day 2 - Script 1: extract_config.py
 Runs AFTER nnUNetv2_plan_and_preprocess has completed.
 
 Does three things:
-  1. Copies splits_final.pkl from nnUNet_raw into nnUNet_preprocessed
+  1. Copies splits_final.json from nnUNet_raw into nnUNet_preprocessed
      so nnU-Net v2 uses YOUR split (fold 0 = splits.json)
+     and also copies splits_final.pkl as a legacy fallback when present
   2. Reads nnUNetPlans.json and extracts patch size, batch size, spacing
   3. Writes config.json — single source of truth for both models
 
@@ -51,18 +52,31 @@ def extract_config():
         print("  nnUNetv2_plan_and_preprocess -d 001 --verify_dataset_integrity")
         return
 
-    # ── Step 1: Copy splits_final.pkl to preprocessed folder ────────────────
-    # nnU-Net v2 reads splits from PREPROCESSED folder, not raw
-    src_pkl = raw_dir / "splits_final.pkl"
-    dst_pkl = preprocessed_dir / "splits_final.pkl"
+    # ── Step 1: Copy splits_final.json to preprocessed folder ───────────────
+    # nnU-Net v2 reads splits from PREPROCESSED/splits_final.json
+    src_json = raw_dir / "splits_final.json"
+    dst_json = preprocessed_dir / "splits_final.json"
 
-    if src_pkl.exists():
-        shutil.copy2(src_pkl, dst_pkl)
-        print(f"✓ splits_final.pkl copied → {dst_pkl}")
-    else:
-        print(f"ERROR: splits_final.pkl not found at {src_pkl}")
+    if not src_json.exists():
+        print(f"ERROR: splits_final.json not found at {src_json}")
         print("Re-run day1/create_nnunet_format.py")
         return
+
+    shutil.copy2(src_json, dst_json)
+    with open(src_json) as f:
+        split_defs = json.load(f)
+    fold_0 = split_defs[0]
+    print(f"✓ splits_final.json copied → {dst_json}")
+    print(f"  Fold 0 train : {len(fold_0['train'])} cases")
+    print(f"  Fold 0 val   : {len(fold_0['val'])} cases")
+
+    src_pkl = raw_dir / "splits_final.pkl"
+    dst_pkl = preprocessed_dir / "splits_final.pkl"
+    if src_pkl.exists():
+        shutil.copy2(src_pkl, dst_pkl)
+        print(f"✓ splits_final.pkl copied  → {dst_pkl}")
+    else:
+        print(f"WARNING: legacy splits_final.pkl not found at {src_pkl}")
 
     # ── Step 2: Read nnUNetPlans.json ────────────────────────────────────────
     with open(plans_path) as f:

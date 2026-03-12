@@ -65,27 +65,65 @@ def load_config(config_path: Path) -> dict:
         return json.load(f)
 
 
-def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Path]:
-    """Return (train_ids, val_ids, test_ids, preproc_dir).
+def load_fold0_split(split_path: Path) -> Tuple[List[str], List[str]]:
+    if split_path.suffix == ".json":
+        with open(split_path) as f:
+            splits = json.load(f)
+    elif split_path.suffix == ".pkl":
+        with open(split_path, "rb") as f:
+            splits = pickle.load(f)
+    else:
+        raise RuntimeError(f"Unsupported split file format: {split_path}")
 
-    Train/val: splits_final.pkl fold 0 — identical to nnU-Net's training split.
+    if not isinstance(splits, list) or not splits:
+        raise RuntimeError(f"Invalid split file: {split_path}")
+
+    fold0 = splits[0]
+    if "train" not in fold0 or "val" not in fold0:
+        raise RuntimeError(f"Fold 0 in {split_path} is missing train/val keys")
+
+    return list(fold0["train"]), list(fold0["val"])
+
+
+def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Path, Path]:
+    """Return (train_ids, val_ids, test_ids, preproc_dir, split_source).
+
+    Train/val: prefer the same splits_final.json that nnU-Net v2 trains with.
     Test:      nnunet_id_map.json entries where split=='test'.
     """
     cfg = load_config(config_path)
 
+    preproc_dataset_dir = Path(cfg["paths"]["nnunet_preproc"]) / "Dataset001_Mitochondria"
+    raw_dataset_dir = Path(cfg["paths"]["nnunet_raw"]) / "Dataset001_Mitochondria"
     preproc_dir = (Path(cfg["paths"]["nnunet_preproc"])
                    / "Dataset001_Mitochondria" / "nnUNetPlans_2d")
 
-    # ── train / val from splits_final.pkl fold 0 ─────────────────────────────
-    splits_pkl = (Path(cfg["paths"]["nnunet_raw"])
-                  / "Dataset001_Mitochondria" / "splits_final.pkl")
-    with open(splits_pkl, "rb") as f:
-        splits = pickle.load(f)
+    candidate_paths = [
+        preproc_dataset_dir / "splits_final.json",
+        raw_dataset_dir / "splits_final.json",
+        preproc_dataset_dir / "splits_final.pkl",
+        raw_dataset_dir / "splits_final.pkl",
+    ]
+    split_source = next((p for p in candidate_paths if p.exists()), None)
+    if split_source is None:
+        raise FileNotFoundError(
+            "No splits_final.json or splits_final.pkl found in nnUNet raw/preprocessed folders."
+        )
 
-    train_ids = [c for c in splits[0]["train"]
-                 if (preproc_dir / f"{c}.b2nd").exists()]
-    val_ids   = [c for c in splits[0]["val"]
-                 if (preproc_dir / f"{c}.b2nd").exists()]
+    train_all, val_all = load_fold0_split(split_source)
+
+    raw_json = raw_dataset_dir / "splits_final.json"
+    preproc_json = preproc_dataset_dir / "splits_final.json"
+    if split_source == preproc_json and raw_json.exists():
+        raw_train, raw_val = load_fold0_split(raw_json)
+        if raw_train != train_all or raw_val != val_all:
+            raise RuntimeError(
+                f"Split mismatch between {preproc_json} and {raw_json}. "
+                "Re-run day2/extract_config.py so U-Net and nnU-Net stay aligned."
+            )
+
+    train_ids = [c for c in train_all if (preproc_dir / f"{c}.b2nd").exists()]
+    val_ids   = [c for c in val_all   if (preproc_dir / f"{c}.b2nd").exists()]
 
     # ── test from id_map ──────────────────────────────────────────────────────
     id_map_path = Path(cfg["paths"]["nnunet_id_map"])
@@ -98,7 +136,7 @@ def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Pat
         and (preproc_dir / f"{cid}.b2nd").exists()
     ]
 
-    return train_ids, val_ids, test_ids, preproc_dir
+    return train_ids, val_ids, test_ids, preproc_dir, split_source
 
 
 def get_checkpoint_paths(config_path: Path) -> Tuple[Path, Path]:
@@ -313,10 +351,48 @@ class UNet(nn.Module):
 # ── Loss functions ────────────────────────────────────────────────────────────
 # Identical to train_unet_corrected_v2.py
 
+def targets_to_class_indices(targets: Tensor) -> Tensor:
+    if targets.ndim == 4 and targets.shape[1] == 1:
+        targets = targets[:, 0]
+    return targets.long()
+
+
+def nnunet_softmax_dice_loss(logits: Tensor, targets: Tensor, smooth: float = 1e-5) -> Tensor:
+    """Match nnU-Net's CE path: softmax + batch Dice, excluding background."""
+    probs = torch.softmax(logits, dim=1)
+    target_idx = targets_to_class_indices(targets)
+    target_onehot = F.one_hot(target_idx, num_classes=logits.shape[1]).permute(0, 3, 1, 2).float()
+
+    probs_fg = probs[:, 1:]
+    target_fg = target_onehot[:, 1:]
+
+    intersect = probs_fg.mul(target_fg).sum(dim=(0, 2, 3), dtype=torch.float32)
+    sum_pred = probs_fg.sum(dim=(0, 2, 3), dtype=torch.float32)
+    sum_gt = target_fg.sum(dim=(0, 2, 3), dtype=torch.float32)
+
+    dice = (2.0 * intersect + smooth) / (sum_gt + sum_pred + smooth).clamp_min(1e-8)
+    return -dice.mean()
+
+
+class CombinedCEDiceLoss(nn.Module):
+    """Cross-entropy + nnU-Net-style softmax Dice for label-map training."""
+    def __init__(self, ce_weight=1.0, dice_weight=1.0, smooth=1e-5):
+        super().__init__()
+        self.ce_weight = ce_weight
+        self.dice_weight = dice_weight
+        self.smooth = smooth
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, logits, targets):
+        target_idx = targets_to_class_indices(targets)
+        ce = self.ce(logits, target_idx)
+        dice = nnunet_softmax_dice_loss(logits, targets, self.smooth)
+        return self.ce_weight * ce + self.dice_weight * dice
+
 class CombinedBCEDiceLoss(nn.Module):
-    """BCE + soft Dice. BCE handles per-pixel gradients; Dice optimises overlap."""
+    """BCE + nnU-Net-style batch soft Dice."""
     def __init__(self, bce_weight=1.0, dice_weight=1.0,
-                 pos_weight=17.12810816704046, smooth=1e-6):
+                 pos_weight=17.12810816704046, smooth=1e-5):
         super().__init__()
         self.bce_weight  = bce_weight
         self.dice_weight = dice_weight
@@ -324,12 +400,15 @@ class CombinedBCEDiceLoss(nn.Module):
         self.register_buffer("pos_weight", torch.tensor(float(pos_weight)))
 
     def soft_dice_loss(self, logits, targets):
-        probs  = torch.sigmoid(logits)
-        pf     = probs.view(probs.size(0), -1)
-        tf     = targets.view(targets.size(0), -1)
-        inter  = (pf * tf).sum(dim=1)
-        card   = pf.sum(dim=1) + tf.sum(dim=1)
-        return (1.0 - (2.0 * inter + self.smooth) / (card + self.smooth)).mean()
+        # Match nnU-Net's region-based binary Dice term:
+        # sigmoid activation, batch Dice over the whole batch, smooth=1e-5.
+        probs = torch.sigmoid(logits)
+        targets = targets.float()
+        intersect = (probs * targets).sum(dtype=torch.float32)
+        sum_pred = probs.sum(dtype=torch.float32)
+        sum_gt = targets.sum(dtype=torch.float32)
+        dice = (2.0 * intersect + self.smooth) / (sum_gt + sum_pred + self.smooth).clamp_min(1e-8)
+        return -dice
 
     def forward(self, logits, targets):
         bce  = F.binary_cross_entropy_with_logits(
@@ -341,7 +420,7 @@ class CombinedBCEDiceLoss(nn.Module):
 class FocalDiceLoss(nn.Module):
     """Focal loss + Dice for severe class imbalance."""
     def __init__(self, focal_weight=1.0, dice_weight=1.0,
-                 gamma=2.0, alpha=0.25, smooth=1e-6):
+                 gamma=2.0, alpha=0.25, smooth=1e-5):
         super().__init__()
         self.focal_weight = focal_weight
         self.dice_weight  = dice_weight
@@ -357,11 +436,12 @@ class FocalDiceLoss(nn.Module):
 
     def soft_dice_loss(self, logits, targets):
         probs = torch.sigmoid(logits)
-        pf    = probs.view(probs.size(0), -1)
-        tf    = targets.view(targets.size(0), -1)
-        inter = (pf * tf).sum(dim=1)
-        card  = pf.sum(dim=1) + tf.sum(dim=1)
-        return (1.0 - (2.0 * inter + self.smooth) / (card + self.smooth)).mean()
+        targets = targets.float()
+        intersect = (probs * targets).sum(dtype=torch.float32)
+        sum_pred = probs.sum(dtype=torch.float32)
+        sum_gt = targets.sum(dtype=torch.float32)
+        dice = (2.0 * intersect + self.smooth) / (sum_gt + sum_pred + self.smooth).clamp_min(1e-8)
+        return -dice
 
     def forward(self, logits, targets):
         return (self.focal_weight * self.focal_loss(logits, targets)
@@ -387,36 +467,53 @@ def compute_hd95(pred, target, spacing=(1.0, 1.0)):
         np.concatenate([dt_target[pred_border > 0], dt_pred[target_border > 0]]), 95))
 
 
-def segmentation_metrics(logits, masks, original_shapes, threshold=0.5):
-    """Returns (dice, precision, recall, f1, accuracy, hd95)."""
-    preds  = (torch.sigmoid(logits) > threshold).float()
+def hard_metric_sums(logits, masks, original_shapes, threshold=0.5):
+    """Accumulate hard TP/FP/FN/TN like nnU-Net online evaluation.
+
+    Dice is computed from thresholded predictions with global TP/FP/FN sums
+    across the whole epoch, matching nnU-Net's reported pseudo Dice.
+    """
+    if logits.shape[1] == 1:
+        preds = (torch.sigmoid(logits) > threshold).float()[:, 0]
+    else:
+        preds = logits.argmax(dim=1).float()
     shapes = original_shapes.cpu().tolist()
-    eps    = 1e-6
-    dice_s, prec_s, rec_s, f1_s, acc_s, hd95_s = [], [], [], [], [], []
+    totals = dict(tp=0.0, fp=0.0, fn=0.0, tn=0.0, hd95=0.0, hd_n=0)
 
     for i, (h, w) in enumerate(shapes):
-        pred   = preds[i, 0, :h, :w]
+        pred   = preds[i, :h, :w]
         target = masks[i, 0, :h, :w]
         try:
             hd = compute_hd95(pred.cpu().numpy(), target.cpu().numpy())
             if not np.isinf(hd):
-                hd95_s.append(hd)
+                totals["hd95"] += float(hd)
+                totals["hd_n"] += 1
         except Exception:
             pass
         pf = pred.reshape(-1); tf = target.reshape(-1)
         tp = (pf * tf).sum(); fp = (pf * (1-tf)).sum()
         fn = ((1-pf) * tf).sum(); tn = ((1-pf) * (1-tf)).sum()
-        dice_s.append(float((2*tp+eps)/(pf.sum()+tf.sum()+eps)))
-        prec_s.append(float((tp+eps)/(tp+fp+eps)))
-        rec_s.append(float((tp+eps)/(tp+fn+eps)))
-        f1_s.append(float((2*tp+eps)/(2*tp+fp+fn+eps)))
-        acc_s.append(float((tp+tn)/(tp+tn+fp+fn+eps)))
+        totals["tp"] += float(tp.item())
+        totals["fp"] += float(fp.item())
+        totals["fn"] += float(fn.item())
+        totals["tn"] += float(tn.item())
 
-    if not dice_s:
-        return 0.0, 0.0, 0.0, 0.0, 0.0, float("inf")
-    return (float(np.mean(dice_s)), float(np.mean(prec_s)), float(np.mean(rec_s)),
-            float(np.mean(f1_s)),   float(np.mean(acc_s)),
-            float(np.mean(hd95_s)) if hd95_s else float("inf"))
+    return totals
+
+
+def summarise_hard_metrics(totals):
+    eps = 1e-6
+    tp = totals["tp"]
+    fp = totals["fp"]
+    fn = totals["fn"]
+    tn = totals["tn"]
+    dice = float((2 * tp + eps) / (2 * tp + fp + fn + eps))
+    precision = float((tp + eps) / (tp + fp + eps))
+    recall = float((tp + eps) / (tp + fn + eps))
+    f1 = float((2 * tp + eps) / (2 * tp + fp + fn + eps))
+    acc = float((tp + tn) / (tp + tn + fp + fn + eps))
+    hd95 = float(totals["hd95"] / totals["hd_n"]) if totals["hd_n"] else float("inf")
+    return dice, precision, recall, f1, acc, hd95
 
 
 # ── Visualisation helpers ─────────────────────────────────────────────────────
@@ -446,7 +543,10 @@ def save_sample_predictions(model, loader, device, output_dir, epoch, max_sample
         images = batch["image"].to(device=device, non_blocking=True)
         masks  = batch["mask"].to(device=device, non_blocking=True)
         logits = model(images)
-        preds  = (torch.sigmoid(logits) > threshold).float()
+        if logits.shape[1] == 1:
+            preds = (torch.sigmoid(logits) > threshold).float()[:, 0]
+        else:
+            preds = logits.argmax(dim=1).float()
         for i in range(images.size(0)):
             if saved >= max_samples:
                 break
@@ -456,7 +556,7 @@ def save_sample_predictions(model, loader, device, output_dir, epoch, max_sample
             lo, hi = img.min(), img.max()
             img_disp = (img - lo) / (hi - lo + 1e-8)
             tgt  = masks[i,  0, :h, :w].cpu().numpy()
-            pred = preds[i,  0, :h, :w].cpu().numpy()
+            pred = preds[i, :h, :w].cpu().numpy()
             composite = _compose_sample_image(img_disp, tgt, pred)
             stem = Path(batch["path"][i]).stem
             composite.save(output_dir / f"epoch{epoch:03d}_{stem}.png")
@@ -486,7 +586,7 @@ def plot_loss_curves(train_losses, val_losses, val_epochs, output_path):
 
 def train_one_epoch(model, loader, optimizer, criterion, device, progress_desc=None):
     model.train()
-    totals = dict(loss=0, dice=0, prec=0, rec=0, f1=0, acc=0, hd95=0, hd_n=0, n=0)
+    totals = dict(loss=0, tp=0, fp=0, fn=0, tn=0, hd95=0, hd_n=0, n=0)
     for batch in loader:
         images = batch["image"].to(device, non_blocking=True)
         masks  = batch["mask"].to(device,  non_blocking=True)
@@ -498,22 +598,18 @@ def train_one_epoch(model, loader, optimizer, criterion, device, progress_desc=N
         totals["loss"] += loss.item() * bs
         totals["n"]    += bs
         with torch.no_grad():
-            d, p, r, f, a, h = segmentation_metrics(logits, masks, batch["original_shape"])
-            totals["dice"] += d * bs; totals["prec"] += p * bs
-            totals["rec"]  += r * bs; totals["f1"]   += f * bs
-            totals["acc"]  += a * bs
-            if not np.isinf(h):
-                totals["hd95"] += h * bs; totals["hd_n"] += bs
+            hard_totals = hard_metric_sums(logits, masks, batch["original_shape"])
+            for key in ("tp", "fp", "fn", "tn", "hd95", "hd_n"):
+                totals[key] += hard_totals[key]
     n = max(totals["n"], 1)
-    return (totals["loss"]/n, totals["dice"]/n, totals["prec"]/n,
-            totals["rec"]/n,  totals["f1"]/n,   totals["acc"]/n,
-            totals["hd95"]/max(totals["hd_n"],1) if totals["hd_n"] else float("inf"))
+    dice, prec, rec, f1, acc, hd95 = summarise_hard_metrics(totals)
+    return totals["loss"] / n, dice, prec, rec, f1, acc, hd95
 
 
 @torch.no_grad()
 def evaluate(model, loader, criterion, device, progress_desc=None):
     model.eval()
-    totals = dict(loss=0, dice=0, prec=0, rec=0, f1=0, acc=0, hd95=0, hd_n=0, n=0)
+    totals = dict(loss=0, tp=0, fp=0, fn=0, tn=0, hd95=0, hd_n=0, n=0)
     for batch in loader:
         images = batch["image"].to(device, non_blocking=True)
         masks  = batch["mask"].to(device,  non_blocking=True)
@@ -521,15 +617,12 @@ def evaluate(model, loader, criterion, device, progress_desc=None):
         loss   = criterion(logits, masks)
         bs = images.size(0)
         totals["loss"] += loss.item() * bs; totals["n"] += bs
-        d, p, r, f, a, h = segmentation_metrics(logits, masks, batch["original_shape"])
-        totals["dice"] += d*bs; totals["prec"] += p*bs
-        totals["rec"]  += r*bs; totals["f1"]   += f*bs; totals["acc"] += a*bs
-        if not np.isinf(h):
-            totals["hd95"] += h*bs; totals["hd_n"] += bs
+        hard_totals = hard_metric_sums(logits, masks, batch["original_shape"])
+        for key in ("tp", "fp", "fn", "tn", "hd95", "hd_n"):
+            totals[key] += hard_totals[key]
     n = max(totals["n"], 1)
-    return (totals["loss"]/n, totals["dice"]/n, totals["prec"]/n,
-            totals["rec"]/n,  totals["f1"]/n,   totals["acc"]/n,
-            totals["hd95"]/max(totals["hd_n"],1) if totals["hd_n"] else float("inf"))
+    dice, prec, rec, f1, acc, hd95 = summarise_hard_metrics(totals)
+    return totals["loss"] / n, dice, prec, rec, f1, acc, hd95
 
 
 def dataloader_worker_init(worker_id):
@@ -559,11 +652,11 @@ def parse_args():
     parser.add_argument("--augment", action="store_true", default=True,
                         help="Random flips, rotations, brightness (default: on).")
     parser.add_argument("--no-augment", dest="augment", action="store_false")
-    parser.add_argument("--loss-type", type=str, default="bce_dice",
-                        choices=["bce_dice", "focal_dice", "bce_only"])
+    parser.add_argument("--loss-type", type=str, default="ce_dice",
+                        choices=["ce_dice", "ce_only", "bce_dice", "focal_dice", "bce_only"])
     parser.add_argument("--bce-weight",   type=float, default=1.0)
     parser.add_argument("--pos-weight",   type=float, default=None,
-                        help="Optional manual BCE positive-class weight. Defaults to the active train split ratio.")
+                        help="Optional manual BCE positive-class weight for legacy BCE modes only.")
     parser.add_argument("--dice-weight",  type=float, default=1.0)
     parser.add_argument("--focal-gamma",  type=float, default=2.0)
     parser.add_argument("--focal-alpha",  type=float, default=0.25)
@@ -582,7 +675,7 @@ def main():
     set_seed(args.seed)
 
     # Load splits and paths from config
-    train_ids, val_ids, test_ids, preproc_dir = load_splits(args.config)
+    train_ids, val_ids, test_ids, preproc_dir, split_source = load_splits(args.config)
     best_checkpoint_path, last_checkpoint_path = get_checkpoint_paths(args.config)
     best_checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -592,8 +685,9 @@ def main():
     print(f"  Augment : {args.augment}")
     print(f"  Resume  : {args.resume}")
     print("=" * 70)
-    print(f"Train : {len(train_ids)}  (splits_final.pkl fold 0)")
-    print(f"Val   : {len(val_ids)}   (splits_final.pkl fold 0)")
+    print(f"Split : {split_source}")
+    print(f"Train : {len(train_ids)}  ({split_source.name} fold 0)")
+    print(f"Val   : {len(val_ids)}   ({split_source.name} fold 0)")
     print(f"Test  : {len(test_ids)}  (preprocessed test cases available for in-script eval)")
     if not test_ids:
         print("Note  : no test .b2nd files are available; final test eval will be run via predict/evaluate scripts.")
@@ -627,19 +721,27 @@ def main():
 
     # Model
     device = torch.device(args.device)
-    model  = UNet(n_channels=1, n_classes=1).to(device)
+    model  = UNet(n_channels=1, n_classes=2).to(device)
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"Device    : {device}")
 
-    effective_pos_weight = args.pos_weight
-    if effective_pos_weight is None:
-        effective_pos_weight = compute_train_pos_weight(args.config)
-        print(f"Pos weight: {effective_pos_weight:.6f} (computed from active train split)")
-    else:
-        print(f"Pos weight: {effective_pos_weight:.6f} (CLI override)")
-
     # Loss
-    if args.loss_type == "bce_dice":
+    effective_pos_weight = None
+    if args.loss_type in {"bce_dice", "focal_dice", "bce_only"}:
+        effective_pos_weight = args.pos_weight
+        if effective_pos_weight is None:
+            effective_pos_weight = compute_train_pos_weight(args.config)
+            print(f"Pos weight: {effective_pos_weight:.6f} (computed from active train split)")
+        else:
+            print(f"Pos weight: {effective_pos_weight:.6f} (CLI override)")
+
+    if args.loss_type == "ce_dice":
+        criterion = CombinedCEDiceLoss(args.bce_weight, args.dice_weight)
+        print("Loss: CE+Dice (nnU-Net-style objective)")
+    elif args.loss_type == "ce_only":
+        criterion = nn.CrossEntropyLoss()
+        print("Loss: CE only")
+    elif args.loss_type == "bce_dice":
         criterion = CombinedBCEDiceLoss(args.bce_weight, args.dice_weight, effective_pos_weight)
         print(f"Loss: BCE+Dice (pos_weight={effective_pos_weight:.6f})")
     elif args.loss_type == "focal_dice":
@@ -724,14 +826,14 @@ def main():
             val_hd95 = float("inf")
 
         val_msg = (
-            f"| val_loss={val_loss:.4f} val_dice={val_dice:.4f} "
+            f"| val_loss={val_loss:.4f} val_pseudo_dice={val_dice:.4f} "
             f"val_precision={val_prec:.4f} val_recall={val_rec:.4f} "
             f"val_hd95={val_hd95:.2f}"
             if do_val else
-            "| val_loss=---- val_dice=---- val_precision=---- val_recall=---- val_hd95=----"
+            "| val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----"
         )
         print(f"Epoch {epoch:03d} complete "
-              f"| train_loss={train_loss:.4f} train_dice={train_dice:.4f} "
+              f"| train_loss={train_loss:.4f} train_pseudo_dice={train_dice:.4f} "
               f"train_precision={train_prec:.4f} train_recall={train_rec:.4f} "
               f"train_hd95={train_hd95:.2f} {val_msg}")
 
@@ -761,6 +863,7 @@ def main():
             "val_acc": val_acc,
             "val_hd95": val_hd95,
             "augment": args.augment,
+            "loss_type": args.loss_type,
             "pos_weight": effective_pos_weight,
         }
         torch.save(checkpoint_state, last_checkpoint_path)

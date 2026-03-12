@@ -2,7 +2,7 @@
 Day 1 - Script 4: create_nnunet_format.py
 ==========================================
 Converts raw tif dataset into nnU-Net's required 2D format
-AND writes splits_final.pkl to override nnU-Net's default CV.
+AND writes splits_final.json to override nnU-Net's default CV.
 
 CEM-MitoLab specific:
   - Masks are instance labels (0=bg, 1-255=mitochondria instances)
@@ -28,7 +28,8 @@ nnU-Net 2D structure produced:
       ├── instancesTs/         ← ORIGINAL instance masks, test set
       │   ├── mito_XXXX_inst.nii.gz
       │   └── ...
-      └── splits_final.pkl     ← fold 0 = splits.json train/val
+      ├── splits_final.json    ← nnU-Net v2 split file, fold 0 = splits.json train/val
+      └── splits_final.pkl     ← legacy fallback copy of the same split
 
 Reads:
   /home/s2292949/dissertation_resplit/data/cem_mitolab
@@ -179,17 +180,24 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
         json.dump(dataset_json, f, indent=2)
     print(f"\ndataset.json saved     → {dataset_dir / 'dataset.json'}")
 
-    # ── Write splits_final.pkl ───────────────────────────────────────────────
-    # nnU-Net expects a list of 5 fold dicts.
+    # ── Write splits_final.{json,pkl} ────────────────────────────────────────
+    # nnU-Net v2 expects a list of fold dicts in splits_final.json.
     # Fold 0 = our exact train/val from splits.json.
     # Folds 1–4 are copies — they will NEVER be trained.
-    fold_0     = {"train": train_case_ids, "val": val_case_ids}
-    splits_pkl = [fold_0] * 5
+    splits = [
+        {"train": list(train_case_ids), "val": list(val_case_ids)}
+        for _ in range(5)
+    ]
+
+    json_path = dataset_dir / "splits_final.json"
+    with open(json_path, "w") as f:
+        json.dump(splits, f, indent=2)
+    print(f"splits_final.json saved → {json_path}")
 
     pkl_path = dataset_dir / "splits_final.pkl"
     with open(pkl_path, "wb") as f:
-        pickle.dump(splits_pkl, f)
-    print(f"splits_final.pkl saved → {pkl_path}")
+        pickle.dump(splits, f)
+    print(f"splits_final.pkl saved  → {pkl_path}")
     print(f"  Fold 0 train : {len(train_case_ids)} cases")
     print(f"  Fold 0 val   : {len(val_case_ids)} cases")
 

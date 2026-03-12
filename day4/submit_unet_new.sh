@@ -12,7 +12,7 @@
 #SBATCH --mail-user=s2292949@ed.ac.uk
 
 # =============================================================================
-# U-Net training — b2nd pipeline (splits_final.pkl fold 0 / nnU-Net aligned)
+# U-Net training — b2nd pipeline (nnU-Net split + nnU-Net-style CE+Dice)
 # =============================================================================
 set -e
 
@@ -31,14 +31,14 @@ echo ""
 echo "Python: $(which python)"
 echo ""
 
-python /home/s2292949/dissertation_resplit/day4/train_unet.py \
+python -u /home/s2292949/dissertation_resplit/day4/train_unet.py \
     --config /home/s2292949/dissertation_resplit/config.json \
     --batch-size 4 \
     --epochs 1000 \
     --learning-rate 1e-3 \
     --num-workers 2 \
     --augment \
-    --loss-type bce_dice \
+    --loss-type ce_dice \
     --sample-output-dir /home/s2292949/dissertation_resplit/samples/unet_val \
     --loss-plot-path /home/s2292949/dissertation_resplit/logs/unet_b2nd_loss.png
 

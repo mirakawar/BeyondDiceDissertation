@@ -230,7 +230,6 @@ def load_unet_model(checkpoint_path: Path, device: torch.device):
 
     from day4.train_unet import UNet  # import the exact model definition used in resplit training
 
-    model = UNet(n_channels=1, n_classes=1).to(device)
     try:
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     except TypeError:
@@ -238,9 +237,16 @@ def load_unet_model(checkpoint_path: Path, device: torch.device):
 
     if "model_state_dict" not in checkpoint:
         raise KeyError(f"Checkpoint at {checkpoint_path} missing 'model_state_dict'.")
-    model.load_state_dict(checkpoint["model_state_dict"])
+
+    state_dict = checkpoint["model_state_dict"]
+    if "outc.conv.weight" not in state_dict:
+        raise KeyError(f"Checkpoint at {checkpoint_path} missing 'outc.conv.weight'.")
+    n_classes = int(state_dict["outc.conv.weight"].shape[0])
+
+    model = UNet(n_channels=1, n_classes=n_classes).to(device)
+    model.load_state_dict(state_dict)
     model.eval()
-    return model, checkpoint.get("epoch")
+    return model, checkpoint.get("epoch"), n_classes
 
 
 def save_outputs(
@@ -402,7 +408,7 @@ def main() -> None:
         collate_fn=collate_fn,
     )
 
-    model, ckpt_epoch = load_unet_model(checkpoint, device)
+    model, ckpt_epoch, n_classes = load_unet_model(checkpoint, device)
 
     print("=" * 72)
     print("U-Net Inference")
@@ -415,6 +421,7 @@ def main() -> None:
     print(f"  normalize   : {args.normalize}")
     print(f"  clip pct    : {clip_percentiles if clip_percentiles is not None else 'none'}")
     print(f"  device      : {device}")
+    print(f"  n_classes   : {n_classes}")
     if ckpt_epoch is not None:
         print(f"  ckpt epoch  : {ckpt_epoch}")
     print(f"  binary out  : {binary_dir}")
@@ -427,7 +434,12 @@ def main() -> None:
         for batch in _progress(loader, desc="Predicting", leave=False):
             images = batch["image"].to(device=device, non_blocking=True)
             logits = model(images)
-            prob = torch.sigmoid(logits).detach().cpu().numpy()
+            if n_classes == 1:
+                prob_fg = torch.sigmoid(logits).detach().cpu().numpy()[:, 0]
+            elif n_classes == 2:
+                prob_fg = torch.softmax(logits, dim=1).detach().cpu().numpy()[:, 1]
+            else:
+                raise RuntimeError(f"Unsupported U-Net output channels: {n_classes}")
             shapes = batch["original_shape"].cpu().numpy()
             case_ids = batch["case_id"]
 
@@ -439,10 +451,10 @@ def main() -> None:
                     continue
 
                 height, width = int(shapes[idx, 0]), int(shapes[idx, 1])
-                prob_fg = prob[idx, 0, :height, :width]
+                prob_fg_hw = prob_fg[idx, :height, :width]
                 save_outputs(
                     case_id=case_id,
-                    prob_fg=prob_fg,
+                    prob_fg=prob_fg_hw,
                     threshold=threshold,
                     binary_dir=binary_dir,
                     probs_dir=probs_dir,

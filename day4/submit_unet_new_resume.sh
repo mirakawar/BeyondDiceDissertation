@@ -12,7 +12,7 @@
 #SBATCH --mail-user=s2292949@ed.ac.uk
 
 # =============================================================================
-# U-Net training — RESUME from checkpoint
+# U-Net training — RESUME from checkpoint with nnU-Net-style CE+Dice
 # =============================================================================
 set -e
 
@@ -31,7 +31,7 @@ echo ""
 echo "Python: $(which python)"
 echo ""
 
-python /home/s2292949/dissertation_resplit/day4/train_unet.py \
+python -u /home/s2292949/dissertation_resplit/day4/train_unet.py \
     --config /home/s2292949/dissertation_resplit/config.json \
     --resume \
     --batch-size 4 \
@@ -39,7 +39,7 @@ python /home/s2292949/dissertation_resplit/day4/train_unet.py \
     --learning-rate 1e-3 \
     --num-workers 8 \
     --augment \
-    --loss-type bce_dice \
+    --loss-type ce_dice \
     --sample-output-dir /home/s2292949/dissertation_resplit/samples/unet_val \
     --loss-plot-path /home/s2292949/dissertation_resplit/logs/unet_b2nd_loss.png
 
