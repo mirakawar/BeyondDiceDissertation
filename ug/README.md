@@ -1,4 +1,4 @@
-# Template for Informatics UG final-year projects
+# Template for Informatics Undergraduate final-year projects
 
 Please base your project report on `skeleton.tex`, reading the instructions in
 that example file carefully.
@@ -22,7 +22,7 @@ necessary, you may remove the `logo` option from the first line of code.
 Although check first that you are using `pdflatex` or the `-pdf` option above.
 As directed in `skeleton.tex` do not change other template or layout options.
 
-Occassionally latex gets really confused by errors, and intermediate files need
+Occasionally LaTeX gets really confused by errors, and intermediate files need
 to be deleted before the report will compile again. We strongly recommend that
 you keep your files in version control so that you can unpick any problems.
 Remember also to keep off-site backups.

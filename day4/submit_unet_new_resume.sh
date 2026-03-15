@@ -3,7 +3,7 @@
 #SBATCH --partition=Teaching
 #SBATCH --account=teaching
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
 #SBATCH --time=48:00:00
 #SBATCH --output=/home/s2292949/dissertation_resplit/logs/unet_b2nd_%j.out
@@ -37,7 +37,7 @@ python -u /home/s2292949/dissertation_resplit/day4/train_unet.py \
     --batch-size 4 \
     --epochs 1000 \
     --learning-rate 1e-3 \
-    --num-workers 8 \
+    --num-workers 2 \
     --augment \
     --loss-type ce_dice \
     --sample-output-dir /home/s2292949/dissertation_resplit/samples/unet_val \

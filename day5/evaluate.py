@@ -66,6 +66,30 @@ def maybe_transpose_to_match(array: np.ndarray, target_shape: Tuple[int, int], n
     raise ValueError(f"{name} shape {array.shape} cannot be aligned to target shape {target_shape}.")
 
 
+def align_prob_to_binary(prob_fg: np.ndarray, pred_binary: np.ndarray, threshold: float) -> np.ndarray:
+    """Fix transposition for square images.
+
+    maybe_transpose_to_match compares shapes, but for a square image (H == W) the
+    transposed shape is identical, so a row/column swap goes undetected.  This
+    function uses the already-correct binary prediction (loaded from nifti) as a
+    reference: if thresholding the probability map agrees better with pred_binary
+    after transposing, the transposed map is returned.
+
+    For non-square images the check is skipped because maybe_transpose_to_match
+    already handles them correctly via shape comparison.
+    """
+    if prob_fg.shape[0] != prob_fg.shape[1]:
+        return prob_fg  # non-square: already handled by maybe_transpose_to_match
+    pred_ref = pred_binary.astype(bool)
+    thr_orig = (prob_fg >= threshold)
+    thr_T    = (prob_fg.T >= threshold)
+    agree      = np.equal(thr_orig, pred_ref).sum()
+    agree_T    = np.equal(thr_T,    pred_ref).sum()
+    if agree_T > agree:
+        return np.ascontiguousarray(prob_fg.T)
+    return prob_fg
+
+
 def extract_probabilities(npz_path: Path) -> np.ndarray:
     data = np.load(npz_path)
     if "probabilities" in data.files:
@@ -204,7 +228,11 @@ def voxel_metrics(pred: np.ndarray, target: np.ndarray) -> Dict[str, float]:
 
 
 def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
-    numeric_df = df.select_dtypes(include=[np.number])
+    # Replace inf/-inf with NaN so that metrics like HD95 (which returns inf for
+    # fully missed/hallucinated cases) do not poison the mean and std.  The median
+    # is unaffected by inf in pandas, but normalising here keeps all statistics
+    # consistent.  The number of inf cases is preserved in the per-image CSV.
+    numeric_df = df.select_dtypes(include=[np.number]).replace([np.inf, -np.inf], np.nan)
     return pd.DataFrame({
         "mean": numeric_df.mean(numeric_only=True),
         "std": numeric_df.std(numeric_only=True),
@@ -244,12 +272,25 @@ def compute_object_metrics(
     pred_binary: np.ndarray,
     gt_instance: np.ndarray,
     iou_thresholds: Sequence[float],
+    min_object_size_px: int = 0,
 ) -> Dict[str, float]:
     pred_binary = pred_binary.astype(bool)
     gt_instance = gt_instance.astype(np.int32)
 
     structure = np.ones((3, 3), dtype=np.uint8)
     pred_labeled, n_pred = label(pred_binary, structure=structure)
+
+    # Remove predicted objects smaller than min_object_size_px (noise filtering).
+    if min_object_size_px > 0 and n_pred > 0:
+        filtered = np.zeros_like(pred_labeled)
+        new_id = 0
+        for obj_id in range(1, n_pred + 1):
+            mask = pred_labeled == obj_id
+            if mask.sum() >= min_object_size_px:
+                new_id += 1
+                filtered[mask] = new_id
+        pred_labeled = filtered
+        n_pred = new_id
     gt_ids = np.unique(gt_instance)
     gt_ids = gt_ids[gt_ids > 0]
     n_gt = int(gt_ids.size)
@@ -321,7 +362,11 @@ def compute_object_metrics(
     # Hungarian one-to-one matching maximizing IoU
     row_idx, col_idx = linear_sum_assignment(1.0 - iou_matrix)
     matched_iou = iou_matrix[row_idx, col_idx]
-    matched_iou_mean = float(matched_iou.mean()) if matched_iou.size > 0 else 0.0
+    # Only count pairs that actually overlap (IoU > 0).  When n_pred < n_gt the
+    # Hungarian algorithm is forced to assign some GT objects to non-overlapping
+    # predictions (IoU = 0); including those zeros would suppress the mean.
+    real_matches = matched_iou[matched_iou > 0]
+    matched_iou_mean = float(real_matches.mean()) if real_matches.size > 0 else 0.0
 
     overlap_gt_per_pred = np.count_nonzero(intersections > 0, axis=0)
     overlap_pred_per_gt = np.count_nonzero(intersections > 0, axis=1)
@@ -417,6 +462,9 @@ def parse_args() -> argparse.Namespace:
         help="IoU thresholds for object precision/recall.",
     )
     parser.add_argument("--ece-bins", type=int, default=15, help="Number of bins for ECE.")
+    parser.add_argument("--min-object-size", type=int, default=None,
+                        help="Minimum predicted object size in pixels for object-level metrics. "
+                             "Defaults to shared.min_object_size_px in config.json.")
     parser.add_argument("--limit", type=int, default=None, help="Optional case limit for smoke testing.")
     parser.add_argument(
         "--strict",
@@ -446,6 +494,11 @@ def main() -> None:
         thresholds.append(default_threshold)
         thresholds = sorted(thresholds)
 
+    if args.min_object_size is not None:
+        min_object_size_px = args.min_object_size
+    else:
+        min_object_size_px = int(cfg["shared"].get("min_object_size_px", 0))
+
     instance_files = sorted(instances_dir.glob("*_inst.nii.gz"))
     if args.limit is not None:
         instance_files = instance_files[: args.limit]
@@ -460,6 +513,7 @@ def main() -> None:
     print(f"  instances dir : {instances_dir}")
     print(f"  cases         : {len(instance_files)}")
     print(f"  thresholds    : {thresholds}")
+    print(f"  min obj size  : {min_object_size_px} px")
     print("=" * 72)
 
     rows: List[Dict[str, float]] = []
@@ -489,6 +543,7 @@ def main() -> None:
             if pred_prob_path.exists():
                 prob_fg = extract_probabilities(pred_prob_path)
                 prob_fg = maybe_transpose_to_match(prob_fg, gt_binary.shape, "probabilities").astype(np.float32)
+                prob_fg = align_prob_to_binary(prob_fg, pred_binary, default_threshold)
             else:
                 missing_probs.append(case_id)
 
@@ -550,7 +605,9 @@ def main() -> None:
                 pred_for_objects = (prob_fg >= default_threshold).astype(np.uint8)
             else:
                 pred_for_objects = pred_binary
-            row.update(compute_object_metrics(pred_for_objects, gt_instance, iou_thresholds=args.obj_iou_thresholds))
+            row.update(compute_object_metrics(pred_for_objects, gt_instance,
+                                               iou_thresholds=args.obj_iou_thresholds,
+                                               min_object_size_px=min_object_size_px))
 
             rows.append(row)
         except Exception:

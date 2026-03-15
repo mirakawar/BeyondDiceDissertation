@@ -66,20 +66,17 @@ modalities. Both models are trained and evaluated under identical data
 conditions using a stratified 70/15/15 train/validation/test split at the
 biological source level.
 
-The central contribution is a three-part empirical critique of Dice as a sole
-evaluation metric. First, Dice compresses biologically critical performance
-differences: foreground Dice is 0.312 for nnU-Net versus 0.191 for the U-Net,
-yet object count error is 1.49 versus 15.03 objects per image and split rate is
-0.053 versus 0.216. Second, Dice is blind to failure mode: both models produce
-similar merge rates (${\approx}0.03$), yet U-Net fragments far more
-ground-truth objects than nnU-Net --- a distinction invisible to pixel-level
-metrics. Third, Dice provides false security: 167 of nnU-Net's 1,216 high-Dice
-predictions (Dice $>$ 0.85) still exceed at least one object-level failure
-cutoff. Paired Wilcoxon tests with Benjamini--Hochberg correction show 26 of 27
-evaluated metric differences are statistically significant; recall at threshold
-0.5 is the only non-significant comparison. Stratified analysis shows these
-patterns hold across all foreground densities, object counts, and imaging types
-present in the dataset.
+The dissertation is designed as a three-part critique of Dice as a sole
+evaluation metric. It tests whether Dice compresses biologically important
+performance differences, whether it fails to distinguish topologically different
+error modes such as merges and splits, and whether apparently strong Dice scores
+can still conceal biologically unreliable predictions. To do this, the study
+combines voxel-level metrics with object-level metrics derived from the
+instance-labelled ground truth, together with corner-case analysis, stratified
+analysis, and non-parametric statistical testing. The main methodological
+contribution is a reproducible evaluation framework that enables a controlled
+comparison between a custom architecture and nnU-Net while exposing failure
+modes that overlap metrics alone can conceal.
 }
 
 \maketitle
@@ -123,12 +120,12 @@ Any acknowledgements go here.
 
 \chapter{Introduction}
 
-Mitochondria are essential organelles responsible for cellular energy production,
-apoptotic signalling, and metabolic regulation. Their morphology --- size, shape,
-and network connectivity --- is tightly coupled to functional state, and disruption
-of mitochondrial structure is implicated in a range of severe diseases including
-Parkinson's disease, Alzheimer's disease, diabetes, and cancer
-\citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}. Accurate,
+Mitochondria are essential organelles that support cellular energy production,
+apoptotic signalling, and metabolic regulation. Their morphology, including
+size, shape, and network connectivity, is tightly linked to functional state.
+Disruption of mitochondrial structure is implicated in a range of severe
+diseases, including Parkinson's disease, Alzheimer's disease, diabetes, and
+cancer \citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}. Accurate,
 large-scale quantification of mitochondrial morphology in biological tissue
 therefore has direct relevance to both basic cell biology and translational
 research.
@@ -137,25 +134,25 @@ Electron microscopy (EM) is the primary imaging modality for resolving
 mitochondrial ultrastructure at nanometre resolution, revealing internal
 organisation and spatial relationships that light microscopy cannot access.
 However, EM datasets are large, heterogeneous, and labour-intensive to annotate
-manually, motivating the development of automated deep learning methods for
-mitochondria segmentation \citep{aswath2023segmentation}. Deep learning
-approaches have advanced rapidly, from early patch-based convolutional networks
-to the encoder-decoder U-Net architecture \citep{ronneberger2015unet} and the
-self-configuring nnU-Net framework \citep{isensee2021nnu}, which automates all
-hyperparameter decisions from dataset properties alone.
+manually, which has driven the development of automated deep learning methods
+for mitochondria segmentation \citep{aswath2023segmentation}. These methods
+have advanced rapidly, from early patch-based convolutional networks to the
+encoder-decoder U-Net architecture \citep{ronneberger2015unet} and, more
+recently, the self-configuring nnU-Net framework \citep{isensee2021nnu}, which
+automates hyperparameter selection from dataset properties alone.
 
 \section{The Metric Gap Problem}
 
-Despite this progress, a fundamental problem in comparing and deploying
-segmentation models remains largely unaddressed: the standard evaluation metric,
-the Dice similarity coefficient, measures pixel-level agreement between
-prediction and ground truth but is insensitive to the spatial organisation of
-individual objects. A model that achieves a high Dice score may nonetheless
-systematically fragment single mitochondria into multiple predicted components,
-merge adjacent organelles into one, or substantially misestimate the total number
-of mitochondria in a field of view. These are not minor technical imperfections
---- they directly corrupt downstream biological analyses of organelle count, size
-distribution, and network connectivity \citep{wei2020mitoem,
+Despite this progress, a central problem in comparing and deploying
+segmentation models remains unresolved. The standard evaluation metric, the
+Dice similarity coefficient, measures pixel-level agreement between prediction
+and ground truth, but it is largely insensitive to the spatial organisation of
+individual objects. A model can achieve a high Dice score while still
+fragmenting single mitochondria into multiple predicted components, merging
+adjacent organelles into one, or substantially misestimating the total number
+of mitochondria in a field of view. These are not minor technical
+imperfections; they directly distort downstream biological analyses of organelle
+count, size distribution, and network connectivity \citep{wei2020mitoem,
 franco-barranco2022stable}.
 
 The problem has three distinct aspects that motivate this dissertation's
@@ -182,7 +179,7 @@ enabling fair direct comparison without confounds from data handling.
 IoU, precision, recall, HD95, boundary F1, Expected Calibration Error) with
 object-level biological metrics (object count error, merge rate, split rate,
 Panoptic Quality) derived from the dataset's original instance annotations, all
-computed per-image across the full 5,677-image test set.
+computed per-image across the full held-out test set.
 
 \item A \textbf{corner case analysis} that systematically identifies images on
 which a model achieves high Dice ($>0.85$) yet exhibits elevated biological
@@ -195,11 +192,10 @@ Benjamini--Hochberg false discovery rate correction across all metrics, and
 type, confirming that findings are consistent across the heterogeneous conditions
 present in CEM-MitoLab.
 
-\item An empirical demonstration that Dice understates the performance gap
-between models by an order of magnitude, is blind to failure mode, and permits
-high-confidence predictions that are biologically unreliable --- providing a
-concrete, quantified case for why biologically motivated metrics are required
-alongside overlap metrics in EM segmentation evaluation.
+\item A \textbf{controlled experimental framework} for testing whether Dice
+understates biologically meaningful performance differences, obscures distinct
+failure modes, and overstates the reliability of apparently strong semantic
+segmentations.
 
 \end{itemize}
 
@@ -212,8 +208,8 @@ time to compute object-level metrics. The comparison is conducted on a single
 dataset and results should be interpreted as specific to CEM-MitoLab's
 conditions. nnU-Net is evaluated using a single training fold rather than its
 default five-fold ensemble, which may underestimate its full potential.
-Architectural and training differences between the two models --- including batch
-size, number of stages, and augmentation strategy --- are acknowledged as
+Architectural and training differences between the two models, including batch
+size, number of stages, and augmentation strategy, are acknowledged as
 potential confounders and are discussed in Chapter~3.
 
 \section{Report Structure}
@@ -221,38 +217,91 @@ potential confounders and are discussed in Chapter~3.
 Chapter~2 reviews relevant literature on EM segmentation methods, benchmark
 datasets, and evaluation metrics. Chapter~3 describes the implementation,
 covering data preparation, the data loading pipeline, training protocols for
-both models, and the evaluation framework. Chapter~4 presents and analyses
-experimental results. Chapter~5 concludes with a summary of findings and
-directions for future work.
+both models, and the evaluation framework. Chapter~4 presents the experimental
+results and analysis, covering nnU-Net's performance in full; the U-Net
+evaluation and model comparison sections are structured placeholders to be
+completed once U-Net training finishes. Chapter~5 draws conclusions and
+discusses limitations and future work.
 
 \chapter{Background and Related Works}
-This chapter explores the existing literature dedicated to leveraging deep learning (DL) techniques for the automatic segmentation of mitochondria in Electron Microscopy (EM) images. The high-resolution, volumetric nature of EM data necessitates automated solutions to overcome the labour-intensive and time-consuming manual annotation \citep{chen2025gctransnet}.
+This chapter reviews the literature on deep learning (DL) methods for the
+automatic segmentation of mitochondria in electron microscopy (EM) images. The
+high-resolution, volumetric nature of EM data makes manual annotation
+labour-intensive and time-consuming, which in turn makes automated solutions a
+practical necessity \citep{aswath2023segmentation}.
 
-Mitochondria are essential organelles central to cellular energy production, metabolism, and regulation, and their morphology is fundamentally linked to functional performance \citep{jang2025deep}. Accurate quantification of their size, geometry, and morphology \citep{tilokani2018mitochondrial} is crucial for basic neuroscience research and clinical studies related to severe diseases, including bipolar disorder, diabetes, Parkinson's, Alzheimer's disease, and cancer \citep{wei2020mitoem, SuomalainenNunnari2024Cell}.
+Mitochondria are central to cellular energy production, metabolism, and
+regulation, and their morphology is closely linked to functional performance
+\citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}. Accurate
+quantification of their size, geometry, and morphology is therefore important
+for both basic neuroscience research and clinical studies of
+neurodegeneration, metabolic disease, and cancer
+\citep{SuomalainenNunnari2024Cell}.
 
-This literature review outlines the major developments in deep learning (DL) methodologies, foundational architectures, benchmark datasets, and advanced approaches developed to tackle the challenge of mitochondrial segmentation in EM images.
+The review covers the main developments in foundational architectures, benchmark
+datasets, and more recent methods designed to address the challenges of
+mitochondrial segmentation in EM images.
 
 \section{Electron Microscopy}
-Electron microscopy (EM) uses focused beams of electrons to image matter at nanometre resolution, revealing ultrastructure that light microscopy cannot resolve and enabling quantitative study of cells, organelles, and materials \citep{aswath2023segmentation}. It is central to modern cell biology and connectomics because it exposes the fine internal organisation and spatial relationships that underpin cellular function and disease.
+Electron microscopy (EM) uses focused beams of electrons to image matter at
+nanometre resolution, revealing ultrastructure that light microscopy cannot
+resolve and enabling quantitative study of cells, organelles, and materials
+\citep{aswath2023segmentation}. It is central to modern cell biology and
+connectomics because it exposes the fine internal organisation and spatial
+relationships that underpin cellular function and disease.
 
 The two principal techniques are Transmission Electron Microscopy (TEM) and Scanning Electron Microscopy (SEM). In TEM, a beam of electrons is transmitted through an ultrathin specimen; regions of differing electron density produce contrast, allowing internal structures such as mitochondrial membranes and cristae to be resolved at sub-nanometre scale. SEM, by contrast, scans a focused beam across the specimen surface and collects backscattered or secondary electrons to produce high-resolution surface topography. In the context of volumetric EM (vEM), serial-section SEM approaches such as Focused Ion Beam SEM (FIB-SEM) and Serial Block-Face SEM (SBF-SEM) are widely used to reconstruct three-dimensional tissue volumes by repeatedly imaging and removing thin layers of a resin-embedded sample \citep{aswath2023segmentation}.
 
-EM datasets are challenging because they are large and often anisotropic, contain dense and visually similar structures with low signal-to-noise and variable staining, and vary considerably across tissues, laboratories, and microscopes. These factors make segmentation methods sensitive to hand-tuned parameters and limit the generalisability of models trained on a single dataset \citep{wei2020mitoem}.
+EM datasets are challenging because they are large, often anisotropic, and
+packed with dense, visually similar structures under variable staining and
+signal-to-noise conditions. They also vary substantially across tissues,
+laboratories, and microscopes. Together, these factors make segmentation
+methods sensitive to hand-tuned parameters and limit the generalisability of
+models trained on a single dataset \citep{wei2020mitoem}.
 
 \section{Foundational Deep Learning Architectures}
-Deep learning methods, a subfield of machine learning utilizing artificial neural networks, have emerged as the dominant approach for automated segmentation in EM due to their ability to capture complex non-linear relationships and handle large, diverse datasets \citep{mathew2021deep, huang2025generalist, aswath2023segmentation}.
+Deep learning methods have become the dominant approach to automated EM
+segmentation because they can model complex non-linear relationships and scale
+to large, heterogeneous datasets \citep{mathew2021deep, huang2025generalist,
+aswath2023segmentation}.
 
 \subsection{Convolutional Networks and the U-Net Paradigm}
-The first steps in DL for segmentation utilised Fully Convolutional Networks (FCNs), which replaced fully connected layers with convolutional layers to enable dense, pixel-to-pixel prediction \citep{franco-barranco2022stable}. A major breakthrough came with the introduction of the U-Net architecture by \citet{ronneberger2015unet}, which extended the FCN encoder-decoder concept by adding skip connections between corresponding encoder and decoder stages. These skip connections allow high-resolution spatial detail captured by the encoder to be concatenated directly into the decoder's upsampling path, enabling precise pixel-wise classification without sacrificing contextual information. Due to its strong performance and generalisation capability across biomedical domains with limited training data, U-Net has since become the de facto baseline for virtually all subsequent work in biomedical image segmentation \citep{conrad2023instance, oktay2018attention}.
+Early deep learning approaches to segmentation used Fully Convolutional Networks
+(FCNs), which replaced fully connected layers with convolutional layers to
+enable dense pixel-wise prediction \citep{franco-barranco2022stable}. A major
+breakthrough came with the U-Net architecture of \citet{ronneberger2015unet},
+which extended the FCN encoder-decoder design by adding skip connections
+between matching encoder and decoder stages. These skip connections preserve
+high-resolution spatial detail while still allowing the network to exploit
+coarse contextual features. Because U-Net performs strongly across biomedical
+domains, particularly when labelled data are limited, it has become the de
+facto baseline for later work in biomedical image segmentation
+\citep{conrad2023instance, oktay2018attention}.
 
 \subsection{Addressing Volumetric (3D) and Anisotropic Data}
-Since mitochondrial morphology must often be studied in three dimensions, standard 2D approaches are extended or replaced by 3D network architectures, which are especially prominent in vEM workflows \citep{aswath2023segmentation}. The 3D U-Net proposed by \citet{cicek2016threeDunet} learns dense volumetric segmentation by operating directly on voxel volumes, capturing spatial relationships between adjacent slices that slice-by-slice 2D methods cannot exploit. However, many EM volumes are highly anisotropic — the in-plane (x,y) resolution is substantially finer than the inter-slice (z) resolution — which limits the benefit of full 3D convolutions and motivates hybrid 2D--3D architectures that apply different operations along each axis \citep{aswath2023segmentation}. For 2D datasets such as CEM-MitoLab, where images are independent 2D slices rather than contiguous volumetric stacks, 2D architectures remain appropriate and avoid the additional computational overhead of volumetric convolutions.
+Since mitochondrial morphology must often be studied in three dimensions, standard 2D approaches are extended or replaced by 3D network architectures, which are especially prominent in vEM workflows \citep{aswath2023segmentation}. The 3D U-Net proposed by \citet{cicek2016threeDunet} learns dense volumetric segmentation by operating directly on voxel volumes, capturing spatial relationships between adjacent slices that slice-by-slice 2D methods cannot exploit. However, many EM volumes are highly anisotropic, and the in-plane (x,y) resolution is substantially finer than the inter-slice (z) resolution, which limits the benefit of full 3D convolutions and motivates hybrid 2D--3D architectures that apply different operations along each axis \citep{aswath2023segmentation}. For 2D datasets such as CEM-MitoLab, where images are independent 2D slices rather than contiguous volumetric stacks, 2D architectures remain appropriate and avoid the additional computational overhead of volumetric convolutions.
 
 \subsection{Self-Configuring Frameworks: nnU-Net}
 
-A persistent limitation of custom U-Net variants is that their performance depends heavily on manual decisions: patch size, normalisation strategy, loss function, learning rate schedule, and batch size must all be tuned to the target dataset, requiring considerable domain expertise and iterative experimentation. \citet{isensee2021nnu} addressed this directly by introducing nnU-Net, a self-configuring segmentation framework that automatically determines all such design choices through a process they term \textit{fingerprint extraction}.
+A persistent limitation of custom U-Net variants is that their performance
+depends heavily on manual design choices. Patch size, normalisation strategy,
+loss function, learning rate schedule, and batch size must all be tuned to the
+target dataset, which requires considerable domain expertise and iterative
+experimentation. \citet{isensee2021nnu} addressed this directly by introducing
+nnU-Net, a self-configuring segmentation framework that determines these
+choices automatically through a process they term \textit{fingerprint
+extraction}.
 
-Given any new dataset, nnU-Net analyses its properties — image dimensions, voxel spacing, intensity statistics, and class frequencies — and uses a fixed set of heuristic rules to configure an appropriate architecture (2D, 3D, or a 3D cascade for highly anisotropic volumes), preprocessing pipeline, and training schedule. No manual intervention or hyperparameter search is required. Despite this automation, nnU-Net achieved state-of-the-art performance across 23 public medical segmentation benchmarks, outperforming specialist methods that had been manually tuned specifically for each individual task — demonstrating that principled automation can not only substitute for expert configuration but surpass it \citep{isensee2021nnu}.
+Given a new dataset, nnU-Net analyses properties such as image dimensions,
+voxel spacing, intensity statistics, and class frequencies, and then applies a
+fixed set of heuristic rules to configure an appropriate architecture (2D, 3D,
+or a 3D cascade for highly anisotropic volumes), preprocessing pipeline, and
+training schedule. No manual hyperparameter search is required. Despite this
+automation, nnU-Net achieved state-of-the-art performance across 23 public
+medical segmentation benchmarks, outperforming specialist methods that had been
+manually tuned for individual tasks. This result shows that principled
+automation can do more than substitute for expert configuration; it can also
+surpass it \citep{isensee2021nnu}.
 
 In the context of this dissertation, nnU-Net represents an important point of comparison: it is evaluated not only on predictive accuracy but on whether its automated configuration strategy yields results that are biologically reliable at the instance level, without the iterative tuning required by custom architectures.
 
@@ -268,65 +317,118 @@ The development of segmentation methods has been driven by several public datase
 \hline
 Lucchi/EPFL Hippocampus &
 The in-practice standard benchmark for a decade. Mitochondria instances are generally small and simple. &
-Subject to performance saturation and labeling inconsistencies \citep{franco-barranco2022stable}. \\
+Subject to performance saturation and labelling inconsistencies \citep{franco-barranco2022stable}. \\
 \hline
 Lucchi++ &
 Re-annotated version of Lucchi to fix misclassifications and boundary inconsistencies.  &
-Used for benchmarking and validating models that generalize well \citep{conrad2023instance}. \\
+Used for benchmarking and validating models that generalise well \citep{conrad2023instance}. \\
 \hline
 MitoEM &
 Largest public mammalian mitochondria dataset, $\sim$3{,}600$\times$ larger than Lucchi, totaling $\sim$40{,}000 instances from human and rat cortices. &
 Designed to address complex morphology (e.g., mitochondria-on-a-string, MOAS) and tightly entangled instances with unclear boundaries; many methods fail on these shapes and close contacts. \citep{wei2020mitoem} \\
 \hline
 CEM1.5M &
-Massive, highly heterogeneous unlabeled EM dataset ($\sim$1.5M images). &
-Used to pre-train generalist models with self-supervised learning to improve generalization across diverse cellular contexts. \citep{xie2025transfer}\\
+Diverse, highly heterogeneous unlabelled EM dataset ($\sim$1.5M images). &
+Used to pre-train generalist models with self-supervised learning to improve generalisation across diverse cellular contexts. \citep{xie2025transfer}\\
 \hline
 CEM-MitoLab &
-Diverse labeled dataset with 135{,}000+ mitochondrial instances, combining legacy data (including MitoEM) and crowdsourced annotations. &
-Curated to train a “universal” model via broad sampling across many image sizes, resolutions, techniques, cells, tissues, and organisms\citep{xie2025transfer, conrad2023instance}. \\
+Diverse labelled dataset with 135{,}000+ mitochondrial instances, combining legacy data (including MitoEM) and crowdsourced annotations. &
+Curated to train a ``universal'' model via broad sampling across many image sizes, resolutions, techniques, cells, tissues, and organisms \citep{xie2025transfer, conrad2023instance}. \\
 \hline
 \end{tabular}
 \end{table}
 
 \newpage
 \section{Segmentation Strategies}
-DL-based segmentation efforts generally fall into two categories: semantic segmentation (pixel-wise classification) and instance segmentation (identifying individual instances). Instance segmentation is necessary for biological quantification and is challenging due to the frequent close contact or overlap of organelles \citep{aswath2023segmentation, conrad2023instance}.
+DL-based segmentation methods generally fall into two categories: semantic
+segmentation, which assigns a class to each pixel, and instance segmentation,
+which separates individual objects. Instance segmentation is particularly
+important for biological quantification, but it is challenging because
+mitochondria frequently touch or overlap in EM images
+\citep{aswath2023segmentation, conrad2023instance}.
 
 \subsection{Supervised Semantic Segmentation}
-Semantic segmentation assigns every pixel to the class `mitochondrion' or `background', producing a binary foreground mask \citep{aswath2023segmentation}. Early CNN-based approaches framed this as a patch classification problem: \citet{oztel2017mitochondria} trained a CNN to classify image patches and then applied a marker-controlled watershed transform and morphological filtering in post-processing, reporting an IoU of 0.907 on the Lucchi benchmark. % TODO: verify IoU 0.907 directly against Oztel et al. (2017) before submission Later work demonstrated that segmenting mitochondria simultaneously with other organelle classes can improve generalisation: \citet{heinrich2021wholecell} showed that a single 3D U-Net trained on 35 organelle classes from the OpenOrganelle collection outperformed specialist models, suggesting that greater training diversity acts as a regulariser.
+Semantic segmentation assigns every pixel to the class `mitochondrion' or `background', producing a binary foreground mask \citep{aswath2023segmentation}. Early CNN-based approaches framed this as a patch classification problem: \citet{oztel2017mitochondria} trained a CNN to classify image patches and then applied a marker-controlled watershed transform and morphological filtering in post-processing, reporting strong performance on the Lucchi benchmark. Later work demonstrated that segmenting mitochondria simultaneously with other organelle classes can improve generalisation: \citet{heinrich2021wholecell} showed that a single 3D U-Net trained on 35 organelle classes from the OpenOrganelle collection outperformed specialist models, suggesting that greater training diversity acts as a regulariser.
 
 A practical challenge in semantic segmentation of mitochondria is class imbalance: foreground pixels typically constitute a small fraction of each image, with background heavily dominating. Standard cross-entropy loss is biased toward the majority class under these conditions, causing models to underpredict mitochondria. Common mitigations include using Dice loss, which normalises by the predicted and ground-truth foreground volumes and is therefore inherently class-balanced, applying a positive-class weight to cross-entropy to penalise false negatives more heavily, or combining both into a compound loss function \citep{isensee2021nnu, franco-barranco2022stable}.
 
 \subsection{Supervised Instance Segmentation}
-The challenge of instance segmentation lies in successfully separating individual organelles, which is particularly difficult due to the frequent close contact and overlapping cross-sections of mitochondria in EM images \citep{wei2020mitoem}. Because bounding box scales are often undefined in EM volumes, bottom-up approaches — which predict masks or boundaries and then apply post-processing to recover instances — are typically preferred over top-down methods such as Mask R-CNN \citep{conrad2023instance}.
+The challenge of instance segmentation lies in successfully separating individual organelles, which is particularly difficult due to the frequent close contact and overlapping cross-sections of mitochondria in EM images \citep{wei2020mitoem}. Because bounding box scales are often undefined in EM volumes, bottom-up approaches, which predict masks or boundaries and then apply post-processing to recover instances, are typically preferred over top-down methods such as Mask R-CNN \citep{conrad2023instance}.
 
 A widely adopted bottom-up strategy is boundary prediction followed by watershed segmentation. \citet{wei2020mitoem} proposed training a 3D U-Net to predict both binary foreground masks and contour maps (U3D-BC), then applying a marker-controlled watershed algorithm to separate touching instances (U3D-BC+MW). While effective on complex morphologies, this approach can fail when touching boundaries are ambiguous or when instances overlap extensively in cross-section.
 
-To address these failure modes, shape-aware networks encode prior knowledge of mitochondrial geometry directly into the training objective. The Hierarchical Encoder-Decoder Network (HED-Net) decomposes the ground truth into complementary label maps based on the ovality of each mitochondrion, supervising the network with shape-derived targets rather than raw binary masks \citep{aswath2023segmentation}. Similarly, HIVE-Net incorporates a centerline-aware module to capture elongated shape priors \citep{chen2025gctransnet}. More recently, transformer-based architectures have been applied to this problem: GCTransNet replaces the U-Net encoder with a 3D Global Context Vision Transformer (GC-ViT) to model both long-range structural relationships and short-range spatial interactions, targeting small and discontinuous mitochondrial instances \citep{chen2025gctransnet}.
+To address these failure modes, shape-aware networks encode prior knowledge of mitochondrial geometry directly into the training objective. The Hierarchical Encoder-Decoder Network (HED-Net) decomposes the ground truth into complementary label maps based on the ovality of each mitochondrion, supervising the network with shape-derived targets rather than raw binary masks \citep{aswath2023segmentation}. Similarly, HIVE-Net incorporates a centreline-aware module to capture elongated shape priors \citep{chen2025gctransnet}. More recently, transformer-based architectures have been applied to this problem: GCTransNet replaces the U-Net encoder with a 3D Global Context Vision Transformer (GC-ViT) to model both long-range structural relationships and short-range spatial interactions, targeting small and discontinuous mitochondrial instances \citep{chen2025gctransnet}.
 
 \section{Addressing Generalisation and Workflow Efficiency}
 A major limitation of traditional DL methods is the failure to generalise when models are presented with unseen cellular contexts or different preparation/imaging protocols \citep{xie2025transfer}. This leads to expensive, repeated cycles of annotation and retraining \citep{conrad2023instance}.
 
 \subsection{Generalist Deep Learning Models and Heterogeneous Data}
-The generalisation problem is addressed by training models on massive, highly diverse datasets. MitoNet, introduced by \citet{conrad2023instance}, is a generalist instance segmentation model built on the Panoptic DeepLab encoder-decoder architecture. Its encoder (ResNet50) was first pre-trained on the unlabelled CEM1.5M dataset using self-supervised learning, then fine-tuned for segmentation on CEM-MitoLab \citep{xie2025transfer}. This training regime demonstrated an important principle: sparsely sampled, noisy but heterogeneous labelled data is more effective for training generalist models than larger, homogeneous, expertly annotated datasets such as MitoEM \citep{conrad2023instance}.
+One response to the generalisation problem is to train models on very large,
+diverse datasets. MitoNet, introduced by \citet{conrad2023instance}, is a
+generalist instance segmentation model built on the Panoptic DeepLab
+encoder-decoder architecture. Its encoder (ResNet50) was first pre-trained on
+the unlabelled CEM1.5M dataset using self-supervised learning and then
+fine-tuned for segmentation on CEM-MitoLab \citep{conrad2023instance}. This
+training regime supports an important conclusion: sparsely sampled, noisy, but
+heterogeneous labelled data can be more useful for training generalist models
+than larger, homogeneous, expertly annotated datasets such as MitoEM
+\citep{conrad2023instance}.
 
-MitoNet performs well on established benchmarks and on newly introduced volumes from diverse tissues including mouse liver and kidney \citep{xie2025transfer}. Even when initial inference is poor on a novel dataset, the model can be rapidly refined through fine-tuning on a small number of annotated patches, demonstrating its value as a foundation for task-specific adaptation. Its utility is further enhanced by the \texttt{empanada} Python package and napari plugin, which provides accessible inference, visualisation, and interactive proofreading \citep{conrad2023instance}.
+MitoNet performs well on established benchmarks and on newly introduced volumes
+from diverse tissues, including mouse liver and kidney
+\citep{xie2025transfer}. Even when inference is initially poor on a novel
+dataset, the model can be refined quickly through fine-tuning on a small number
+of annotated patches, which makes it a useful foundation for task-specific
+adaptation. Its practical value is strengthened further by the
+\texttt{empanada} Python package and napari plugin, which provide accessible
+inference, visualisation, and interactive proofreading
+\citep{conrad2023instance}.
 
 \subsection{Transfer Learning}
-Transfer learning involves initialising a network with weights pre-trained on a related task or dataset and then fine-tuning on the target domain, rather than training from random initialisation \citep{xie2025transfer}. In the context of vEM organelle segmentation, \citet{xie2025transfer} demonstrated that transfer learning substantially improves performance even when the source and target tasks differ in both domain and objective — for instance, transferring weights learned on mouse brain neurite segmentation to rat liver mitochondria segmentation. Crucially, combining transfer learning with fine-tuning on as few as 100 annotated patches achieved an IoU of 92.37\% for mitochondria on a novel rat liver dataset, outperforming MitoNet and SAM2 evaluated in zero-shot and prompted settings respectively \citep{xie2025transfer}. These results suggest that modest amounts of target-domain annotation, when combined with a well-pre-trained initialisation, can be more effective than larger amounts of data used to train a generalist model from scratch.
+Transfer learning initialises a network with weights pre-trained on a related
+task or dataset before fine-tuning it on the target domain, rather than
+training entirely from random initialisation \citep{xie2025transfer}. In the
+context of vEM organelle segmentation, \citet{xie2025transfer} showed that
+transfer learning can improve performance even when the source and target tasks
+differ in both domain and objective, for example when transferring from mouse
+brain neurite segmentation to rat liver mitochondria segmentation. Crucially,
+combining transfer learning with fine-tuning on as few as 100 annotated patches
+achieved an IoU of 92.37\% for mitochondria on a novel rat liver dataset,
+outperforming MitoNet and SAM2 evaluated in zero-shot and prompted settings,
+respectively \citep{xie2025transfer}. These results suggest that modest amounts
+of target-domain annotation, when paired with a strong pre-trained
+initialisation, can be more effective than training a generalist model from
+scratch on a larger but less targeted dataset.
 
 \subsection{Morphology-Function Prediction}
 
-Beyond segmentation accuracy, recent work has explored linking mitochondrial morphology directly to functional outcomes: \citet{ding2025mitochondrial} demonstrate that morphological features extracted from segmentation masks can predict mitochondrial membrane potential, respiration rate, and ATP generation in live-cell fluorescence images, pointing toward a future in which segmentation quality is evaluated not only geometrically but by the validity of the downstream biology it enables.
+Beyond segmentation accuracy, recent work has begun to link mitochondrial
+morphology directly to functional outcomes. \citet{ding2025mitochondrial}
+demonstrate that morphological features extracted from segmentation masks can
+predict mitochondrial membrane potential, respiration rate, and ATP generation
+in live-cell fluorescence images. This points towards a future in which
+segmentation quality is judged not only geometrically, but also by the
+biological validity of the downstream inferences it supports.
 
 \subsection{Interactive Segmentation and Uncertainty Analysis}
-To minimise the extensive manual proofreading required after automated segmentation, interactive DL frameworks have been developed that allow users to iteratively refine predictions with targeted feedback. \citet{jang2025deep} proposed a Probabilistic Interactive (PI) segmentation framework that combines a probabilistic U-Net with uncertainty analysis: the model produces not just a single prediction but a distribution over possible segmentations, and regions of high uncertainty are surfaced to the user as likely error-prone areas. The user can then provide positive or negative clicks to correct these regions, and the model updates its prediction accordingly. This uncertainty-driven feedback mechanism achieved substantial efficiency gains, reducing overall analysis time by approximately 90\% — specifically 90.3\% on Lucchi++ and 91.4\% on skeletal muscle TEM data — while maintaining accuracy comparable to gold-standard manual segmentation \citep{jang2025deep}.
+To reduce the extensive manual proofreading required after automated
+segmentation, interactive DL frameworks allow users to refine predictions
+iteratively through targeted feedback. \citet{jang2025deep} proposed a
+Probabilistic Interactive (PI) segmentation framework that combines a
+probabilistic U-Net with uncertainty analysis. Rather than producing a single
+segmentation, the model produces a distribution over plausible segmentations
+and highlights regions of high uncertainty as likely error-prone areas. The
+user can then provide positive or negative clicks to correct those regions, and
+the model updates its prediction accordingly. This uncertainty-driven feedback
+mechanism achieved substantial efficiency gains, reducing overall analysis time
+by approximately 90\%, specifically 90.3\% on Lucchi++ and 91.4\% on skeletal
+muscle TEM data, while maintaining accuracy comparable to gold-standard manual
+segmentation \citep{jang2025deep}.
 
 \section{Evaluation Metrics for Segmentation}
 \label{sec:bg-metrics}
 
-The choice of evaluation metric is not a neutral decision --- it determines which model behaviours are visible and which are hidden. This section reviews the metrics used to assess mitochondria segmentation, distinguishing between voxel-level overlap metrics and object-level metrics that capture biologically relevant failure modes.
+The choice of evaluation metric is not a neutral decision; it determines which model behaviours are visible and which are hidden. This section reviews the metrics used to assess mitochondria segmentation, distinguishing between voxel-level overlap metrics and object-level metrics that capture biologically relevant failure modes.
 
 \subsection{Voxel-Level Overlap Metrics}
 
@@ -346,7 +448,7 @@ Precision and Recall decompose the error into false positives (over-segmentation
 
 Despite their prevalence, overlap metrics have well-documented limitations that are particularly acute in the context of mitochondrial morphology analysis. Most critically, Dice is a \textit{global} measure: a model can achieve high Dice by correctly classifying the large majority of background pixels while systematically merging adjacent mitochondria into single predicted objects, or fragmenting individual mitochondria into multiple disconnected components. In both cases, the count and morphology of individual instances are distorted, yet Dice may remain high \citep{wei2020mitoem, franco-barranco2022stable}.
 
-This matters biologically because downstream analyses --- such as estimating mitochondrial number density, volume distributions, or elongation ratios --- depend entirely on the accuracy of instance-level segmentation. A model that achieves 0.90 Dice while generating systematic merge errors will produce systematically inflated volume estimates and deflated instance counts, leading to incorrect biological conclusions even when the pixel-level accuracy appears strong.
+This matters biologically because downstream analyses, such as estimating mitochondrial number density, volume distributions, or elongation ratios, depend entirely on the accuracy of instance-level segmentation. A model that achieves 0.90 Dice while generating systematic merge errors will produce systematically inflated volume estimates and deflated instance counts, leading to incorrect biological conclusions even when the pixel-level accuracy appears strong.
 
 Furthermore, \citet{franco-barranco2022stable} note that performance on established benchmarks such as Lucchi has saturated, with multiple methods reporting near-identical Dice scores despite visibly different segmentation quality on complex morphologies. This motivates the use of additional metrics that probe different aspects of model behaviour.
 
@@ -362,7 +464,7 @@ To complement overlap metrics, object-level metrics evaluate the model's behavio
 \]
 PQ is zero for any predicted instance that does not match a ground-truth instance above a minimum IoU threshold (typically 0.5), making it substantially harder to inflate than pixel-level Dice.
 
-Together, these object-level metrics form the foundation of a biologically motivated evaluation protocol: they assess not just whether the model segments the right \textit{pixels}, but whether it recovers the right \textit{objects} with the right \textit{boundaries} --- which is ultimately what downstream biological quantification requires.
+Together, these object-level metrics form the foundation of a biologically motivated evaluation protocol: they assess not just whether the model segments the right \textit{pixels}, but whether it recovers the right \textit{objects} with the right \textit{boundaries}, which is ultimately what downstream biological quantification requires.
 
 \section{Challenges and Future Outlook}
 Despite major advances in both semantic and instance segmentation, several challenges remain that limit the practical reliability of automated mitochondria segmentation in EM images.
@@ -371,7 +473,7 @@ Generalisation across data heterogeneity is the most pervasive problem. Models t
 
 At the instance level, reliably separating tightly packed or morphologically complex mitochondria remains difficult. Structures such as mitochondria-on-a-string (MOAS), which exhibit thin connecting regions between swollen bodies, and mitochondria in close lateral contact, frequently produce merge and split errors even in models with high pixel-level accuracy \citep{wei2020mitoem}. This disconnect between overlap metrics and instance-level reliability is a central motivation for adopting biologically motivated evaluation protocols that make such failure modes visible.
 
-Computational cost presents a further constraint: training deep 3D CNNs on large EM volumes demands significant GPU memory and time, limiting accessibility and the pace of iteration \citep{chen2025gctransnet, aswath2023segmentation}. Finally, reproducibility remains a structural problem in the field — many high-performing methods do not release code or report complete training details, making it difficult to verify or build upon published results \citep{franco-barranco2022stable}. The lack of standardised evaluation protocols compounds this issue by making cross-study comparison unreliable.
+Computational cost presents a further constraint: training deep 3D CNNs on large EM volumes demands significant GPU memory and time, limiting accessibility and the pace of iteration \citep{chen2025gctransnet, aswath2023segmentation}. Finally, reproducibility remains a structural problem in the field: many high-performing methods do not release code or report complete training details, making it difficult to verify or build upon published results \citep{franco-barranco2022stable}. The lack of standardised evaluation protocols compounds this issue by making cross-study comparison unreliable.
 
 Looking ahead, the field is expected to shift from task-specific architectures toward general-purpose segmentation models that leverage large unlabelled datasets through self-supervised pre-training and adapt rapidly to specific tasks with minimal annotation \citep{aswath2023segmentation}. Interactive frameworks and accessible tooling such as \texttt{empanada} will be essential for bridging the gap between automated segmentation and the expert validation that biological research demands \citep{xie2025transfer}.
 
@@ -382,475 +484,505 @@ Looking ahead, the field is expected to shift from task-specific architectures t
 
 \chapter{Implementation}
 
-This chapter discusses the design and construction of the experimental pipeline, covering the decisions taken, the difficulties encountered, and the degree to which each component was completed. Where relevant, the rationale behind technical choices is examined rather than the mechanics of individual code paths.
+This chapter describes the experimental pipeline used to compare the custom
+U-Net and nnU-Net on CEM-MitoLab. The central design goal was to make the
+comparison as controlled as possible: both models should train on the same
+split, consume the same preprocessed inputs where feasible, and be evaluated by
+the same post-processing and metric code.
 
 \section{Overall System Design}
 
-The pipeline comprises four loosely coupled components: a data loading and preprocessing layer shared by both models, a custom U-Net training framework, an nnU-Net configuration and training setup, and an evaluation framework that computes both voxel-level and object-level metrics on a held-out test set. The separation of concerns was deliberate: by decoupling data preparation from model training, it was possible to guarantee that both models received identical inputs, which is a prerequisite for any fair comparison. Ensuring this equivalence turned out to be the most technically demanding aspect of the project and is discussed in detail in Section~\ref{sec:impl-pipeline}.
+The pipeline has four components: dataset conversion and split definition, a
+custom U-Net training stack, an nnU-Net training stack, and a shared
+evaluation framework. The dataset contains 21,871 annotated 2D EM slices. In
+the resplit workspace used for the final experiments, these are partitioned
+into 15,312 training slices, 3,247 validation slices, and 3,312 test slices,
+while preserving a source-level split of 415/89/89 biological samples across
+train/validation/test. This separation matters because the dissertation is not
+only comparing two segmentation models; it is also comparing them under a
+controlled data regime intended to remove split-induced confounds.
 
-The custom U-Net training framework, the SLURM job submission scripts, and a shared \texttt{evaluate.py} applicable to both models were written from scratch. The nnU-Net framework itself was installed as a Python package without modification, and the \texttt{DiceCELoss} implementation was sourced from the \texttt{monai} library rather than reimplemented. Everything else — the U-Net architecture, the data loading pipeline, the augmentation logic, the evaluation metrics code, and the nnU-Net environment configuration — was built from scratch.
+The shared infrastructure around both models was written specifically for this
+project: dataset conversion, split synchronisation, U-Net training and
+inference, SLURM submission scripts, and the evaluation code. nnU-Net itself
+was installed as an external package and treated as a black-box training
+framework. The methodological effort therefore lay in making the surrounding
+pipeline consistent and reproducible rather than in modifying nnU-Net's core
+implementation.
 
-\section{Data Loading Pipeline}
+\section{Data Preparation and Split Alignment}
 \label{sec:impl-pipeline}
 
-The data loading pipeline was the most technically challenging component of the project. The core requirement was straightforward: both models should train on the same preprocessed data using the same train/val/test split. Achieving this in practice required resolving three sequential problems, each of which only became visible after the previous one had been addressed.
+The raw CEM-MitoLab TIFF images and masks were converted into an nnU-Net-style
+dataset named \texttt{Dataset001\_Mitochondria}. Semantic training masks were
+derived from the original instance labels by binarising all non-zero
+mitochondrion IDs, while the original instance masks were retained separately
+for object-level evaluation. The conversion step also writes the custom fold
+definition used throughout the project.
 
 \subsection{Format Discovery: \texttt{.npz} to \texttt{.b2nd}}
 
-The initial design read nnU-Net's preprocessed data from \texttt{.npz} files stored under \texttt{nnUNet\_preprocessed/Dataset001\_Mitochondria/nnUNetPlans\_2d/}, using \texttt{nnunet\_id\_map.json} as a lookup table to map nnU-Net's internal integer sample IDs back to the original filenames. This approach failed immediately: nnU-Net v2.6 had silently changed its serialisation format from \texttt{.npz} to \texttt{.b2nd}, a blosc2-compressed array format. The change was not prominently documented in the version in use. Switching the reader to \texttt{.b2nd} via the \texttt{blosc2} library resolved the format issue.
+nnU-Net v2.6 stores preprocessed training tensors as \texttt{.b2nd} files
+rather than the older \texttt{.npz} format. The custom U-Net therefore reads
+the same \texttt{.b2nd} tensors that nnU-Net trains on, using the
+\texttt{blosc2} library to access the arrays on disk. This ensures that both
+models see the same nnU-Net-preprocessed, z-score normalised image inputs
+during training and validation.
 
 \subsection{Variable Spatial Dimensions and Collation}
 
-Reading \texttt{.b2nd} files correctly exposed a second problem: images in CEM-MitoLab have variable spatial dimensions. Individual samples range from 256$\times$384 to 512$\times$512 pixels, and PyTorch's default \texttt{collate\_fn} assumes that all items in a batch share the same shape so they can be stacked into a single tensor. Batches containing mixed-size images caused a shape mismatch error at runtime. Two solutions were considered: cropping all images to a fixed size, or padding each batch dynamically to the largest dimensions present in that batch. Cropping was rejected on methodological grounds — applying a fixed crop would introduce a preprocessing asymmetry between the U-Net (which would see cropped images) and nnU-Net (which had been configured on the full-resolution statistics), potentially invalidating the comparison. The adopted solution was a custom \texttt{pad\_collate\_fn} that zero-pads each image in a batch to the maximum height and width present in that batch before stacking. This preserves the full image content while satisfying PyTorch's batching requirements, and applies the same operation to both images and their corresponding masks.
+The preprocessed slices do not all share the same spatial dimensions, so
+PyTorch's default batch collation is insufficient. To preserve the full field
+of view, a custom \texttt{pad\_collate\_fn} pads each batch dynamically to the
+maximum height and width present in that batch, and the dataset class pads each
+sample to a multiple of 32 before it enters the network. This choice avoids any
+crop-based asymmetry between the custom U-Net and nnU-Net while still allowing
+mini-batch training.
 
 \subsection{Split Alignment}
 
-With the \texttt{.b2nd} reader and collation resolved, the final problem was aligning the U-Net's training split with the one nnU-Net had used for its own training. nnU-Net stores its cross-validation splits in \texttt{splits\_final.pkl}, which indexes samples by internal integer IDs rather than by filename. Using a different or independently generated split would mean the two models had trained on partially overlapping or entirely different data, making any comparison of their generalisation invalid. The fix was to load fold~0 from \texttt{splits\_final.pkl} and map the integer IDs back to original TIFF paths via \texttt{nnunet\_id\_map.json}, then pass these paths directly to the U-Net's \texttt{Dataset} class. This guaranteed that both models trained on identical samples and were evaluated on the same held-out test set.
-
-The difficulty of this pipeline lay not in any single problem but in their sequential nature: each apparent fix revealed a new constraint that had been invisible until that point. The \texttt{.npz}$\to$\texttt{.b2nd} format change was an undocumented version-specific behaviour; the variable-size collation failure only appeared at runtime under real data; and the split alignment issue required understanding the internal data structures of nnU-Net's preprocessing pipeline. What unified all three was the same underlying challenge: ensuring that two models with entirely different codebases could be trained on a common, reproducible data view without either receiving a preprocessing advantage.
+The canonical split file for the final experiments is
+\texttt{splits\_final.json}, stored in both the raw and preprocessed nnU-Net
+dataset directories. Fold~0 of this file is synchronised with the project's
+\texttt{splits.json} and validated against \texttt{nnunet\_id\_map.json} before
+training starts. The custom U-Net loader reads the same fold~0 definition, so
+the U-Net and nnU-Net train on identical train/validation cases. The held-out
+test set remains separate from this fold definition and is evaluated only after
+training, using the same downstream evaluation script for both models.
 
 \section{Custom U-Net}
 
-The U-Net architecture was implemented in PyTorch from scratch. The design follows the standard encoder-decoder structure with skip connections described in Section~3.2.1, instantiated as a 5-stage network with feature channels doubling from 32 at the first stage to 512 at the bottleneck. Instance Normalisation was chosen over Batch Normalisation because it is less sensitive to small batch sizes — with a batch size of 4, dictated by GPU memory constraints on the Hastings cluster, Batch Normalisation statistics are unreliable. Leaky ReLU activations were used throughout.
+The custom model is a 2D U-Net implemented in PyTorch from scratch. It follows
+the standard encoder-decoder design with skip connections, using four
+down-sampling blocks and a bottleneck, with channel widths 64, 128, 256, 512,
+and 1024 before the decoder upsamples back to full resolution. Each
+\texttt{DoubleConv} block uses two 3$\times$3 convolutions with
+\texttt{InstanceNorm2d} and \texttt{ReLU} activations. Instance normalisation
+was chosen because the custom model trains with a batch size of 4, for which
+batch-normalisation statistics are unstable.
 
-The loss function combined two terms: \texttt{DiceCELoss} (from \texttt{monai}), which sums Dice loss and cross-entropy with batch-level Dice computation, and Binary Cross-Entropy with a positive-class weight of 17.0766. This weight was not chosen arbitrarily — it was calculated exactly as the ratio of total background pixels to total foreground pixels across all training images, giving a principled correction for the foreground/background imbalance of approximately 6.2\%/93.8\%. The AdamW optimiser was used with a \texttt{ReduceLROnPlateau} scheduler that decreases the learning rate when validation Dice plateaus. Early stopping was applied with a patience of 50 epochs and a minimum improvement threshold of $\delta = 0.001$, up to a maximum of 1,000 epochs.
+To make the comparison closer to nnU-Net, the U-Net now predicts two classes
+(background and mitochondria) and is trained with a combined cross-entropy plus
+soft Dice objective. The Dice term is implemented as batch-level softmax Dice
+over the foreground channel only, matching nnU-Net's non-region
+\texttt{CE + Dice} training path. During training and validation, the reported
+Dice is also aligned with nnU-Net: it is computed from epoch-level hard
+true-positive, false-positive, and false-negative counts rather than as a mean
+of per-image Dice values.
 
-Training was submitted via SLURM to the \texttt{Teaching} partition on Hastings and completed with early stopping after 148 epochs in the requeued run. The best checkpoint was from epoch 48 (\texttt{val\_loss}=0.9348). Full U-Net test-set prediction and evaluation were then executed for all 5,677 held-out test images.
+The optimiser is \texttt{AdamW} with learning rate $10^{-3}$, and the learning
+rate is reduced on plateau using \texttt{ReduceLROnPlateau} with patience 3 and
+factor 0.5. Training is run for up to 1,000 epochs with validation every second
+epoch and early stopping if validation loss fails to improve by at least 0.001
+for 50 validation checks. Data augmentation is applied only to the training
+split and consists of horizontal and vertical flips, random 90-degree
+rotations, small brightness shifts, contrast scaling, and additive Gaussian
+noise. The trainer writes both \texttt{best\_model.pt} and
+\texttt{last\_checkpoint.pt}; the latter stores the model, optimiser,
+scheduler, and loss history so that SLURM preemption does not force a restart
+from scratch.
+
+Training is launched through SLURM on the Hastings teaching partition with one
+GPU, 32 GB RAM, and two CPU workers. Held-out test inference is performed in a
+separate prediction step so that the final scoring of U-Net and nnU-Net is
+always done through the same evaluation code path.
 
 \section{nnU-Net Configuration}
 
-nnU-Net was installed as a Python package and required no modifications to its core codebase. The configuration process — dataset fingerprinting, architecture selection, preprocessing, and training schedule — was entirely automatic, which is by design and constitutes part of the experimental comparison: the question of whether an auto-configured pipeline can match or exceed a hand-tuned one is central to the dissertation's argument.
+nnU-Net was installed as a Python package and used without modification to its
+own training logic. For this dataset it selected the 2D configuration, with a
+patch size of 512$\times$512 and batch size 12. The resulting network is a
+\texttt{PlainConvUNet} with eight stages, feature widths
+\{32, 64, 128, 256, 512, 512, 512, 512\}, \texttt{InstanceNorm2d}
+normalisation, and \texttt{LeakyReLU} activations. These choices come directly
+from nnU-Net's planning stage and are part of what the dissertation is
+evaluating: whether automatic configuration can compete with a custom
+implementation under the same data split and evaluation framework.
 
-Two problems arose during setup. The first was a PyTorch/Python incompatibility: PyTorch 2.10.0+cu128 contains a bug in which the inductor backend attempts to import \texttt{CSE[Any]} as a type annotation in \texttt{torch/\_inductor/codegen/cutedsl/cutedsl\_kernel.py}, which fails under Python~3.12's stricter typing enforcement. The crash occurred at import time before any training could begin. The fix was a one-line patch to line~77 of that file, replacing \texttt{Optional[CSE[Any]]} with \texttt{Optional[Any]}. This modification was applied to the PyTorch installation on the cluster only and did not alter nnU-Net's own code. An earlier attempt to resolve the issue by patching the nnU-Net trainer was reverted via \texttt{git checkout} once the root cause was identified in PyTorch.
+Training is invoked as \texttt{nnUNetv2\_train 001 2d 0 --npz --c}. The
+\texttt{--npz} flag preserves probability maps needed for calibration and
+threshold-sensitivity analysis, while \texttt{--c} enables resume-from-checkpoint
+behaviour under SLURM preemption. The launch script validates that the raw and
+preprocessed \texttt{splits\_final.json} files match each other and match the
+active project split before training begins, preventing nnU-Net from silently
+falling back to its own autogenerated cross-validation folds.
 
-The second problem was SLURM preemption: nnU-Net training was preempted by the job scheduler before completion. nnU-Net supports checkpoint resumption natively via the \texttt{--c} flag in its training command, which instructs it to resume from the latest saved checkpoint rather than restart. Once this flag was added to the SLURM script, any future preemption would resume automatically without manual intervention. Training ultimately ran for 969 epochs, reaching a best EMA Dice of 0.8992 on the validation set.
+A cluster-specific environment issue did require attention: under Python~3.12,
+the local PyTorch 2.10.0+cu128 installation failed inside the inductor backend
+because of an invalid type annotation in
+\texttt{torch/\_inductor/codegen/cutedsl/cutedsl\_kernel.py}. This was resolved
+by patching the PyTorch installation on the cluster, not by editing nnU-Net
+itself. From the perspective of the dissertation, nnU-Net therefore remains an
+unmodified external baseline.
 
 \section{Evaluation Framework}
 
-The evaluation framework was written from scratch. No external library was used for the object-level metrics; the decision to implement them directly was partly pragmatic (avoiding dependency conflicts on the cluster) and partly to ensure full control over the exact matching logic, which needed to be consistent across both models.
+Evaluation is performed by a single script shared by both models. For each test
+case, the script reads a binary prediction mask, a foreground probability map,
+and the original instance-labelled ground truth. The same evaluation code is
+used for U-Net and nnU-Net so that metric differences cannot be attributed to
+post-processing differences.
 
 \subsection{Voxel-Level Metrics}
 
-The voxel-level metrics — Dice, IoU, Precision, Recall, HD95, Boundary F1 at 2px and 5px tolerance, ECE, and threshold sensitivity at five decision thresholds — are computed directly from binary prediction and ground-truth masks using \texttt{numpy} and \texttt{scipy}. These are largely routine to implement given the metric definitions; the main engineering consideration was ensuring that predictions are binarised at the correct threshold before each metric is computed, and that HD95 is calculated on boundary pixels rather than the full mask.
+Voxel-level metrics are computed at foreground thresholds
+\{0.3, 0.4, 0.5, 0.6, 0.7\}. At each threshold the evaluation records
+foreground Dice, background Dice, mean Dice, IoU, precision, recall, HD95, and
+boundary F1 at 2-pixel and 5-pixel tolerance. HD95 is computed from boundary
+pixels using Euclidean distance transforms rather than from the full mask.
+Expected Calibration Error (ECE) is computed from the probability maps using 15
+bins. This produces both a default-threshold comparison at 0.5 and a
+threshold-sensitivity analysis showing whether the ranking between models is
+stable across operating points.
 
 \subsection{Object-Level Metrics}
 
-The object-level pipeline is more involved. Since the U-Net and nnU-Net both produce semantic (binary) predictions rather than instance-labelled outputs, predicted instances are recovered via connected-component labelling using \texttt{scipy.ndimage}. Ground-truth instance masks are already available with unique integer IDs per mitochondrion (stored alongside the semantic masks in the dataset). For each predicted component, the IoU is computed against every ground-truth instance it overlaps. This pairwise IoU matrix is then used to classify matches: a predicted component that overlaps multiple ground-truth instances above the IoU threshold constitutes a merge; a ground-truth instance overlapped by multiple predicted components constitutes a split; one-to-one matches above the threshold contribute to true positives. Merge rate, split rate, and object-level precision and recall at IoU thresholds of 0.3, 0.5, 0.7, and 0.9 are derived from these counts. Panoptic Quality is computed as the standard formulation: the product of mean IoU over matched pairs (Segmentation Quality) and the F1-equivalent detection score (Detection Quality), following \citet{kirillov2019panoptic}.
-
-\subsection{Completion Status}
-
-The evaluation framework was fully executed on both models' test-set predictions. For each model, per-image and aggregate outputs were generated over all 5,677 test cases. No cases were dropped due to missing binary masks or probability files in the final U-Net evaluation run.
-
-ECE was also computed in the final pipeline because probability maps were available for both models (\texttt{.npz} files stored under each model's prediction directory).
-
-\begin{figure}[ht]
-\centering
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/contour_overlap/mito_17141_contour.png}
-  \caption{Test image \texttt{mito\_17141}: ground-truth contours (green) overlaid on U-Net (red) and nnU-Net (blue) predictions.}
-\end{subfigure}
-\vspace{0.5em}
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/contour_overlap/mito_19033_contour.png}
-  \caption{Test image \texttt{mito\_19033}: same colour scheme. nnU-Net boundaries align more closely with the ground-truth contours.}
-\end{subfigure}
-\caption{Contour overlap visualisations produced by the evaluation pipeline.
-Green = ground-truth boundary; red = U-Net prediction boundary;
-blue = nnU-Net prediction boundary.  These are representative examples of
-the 5,677 such images generated during evaluation.}
-\label{fig:contours}
-\end{figure}
+Because both models are trained as semantic segmenters, predicted instances are
+recovered by connected-component labelling of the binary foreground mask using a
+3$\times$3 connectivity structure. These recovered components are compared with
+the ground-truth instance masks by constructing a full pairwise IoU matrix and
+then applying Hungarian matching for one-to-one assignments. From this matrix,
+the evaluation computes object count error, signed count error, merge events,
+split events, merge rate, split rate, connectivity error, mean matched IoU,
+Panoptic Quality at IoU $> 0.5$, and object-level precision/recall at IoU
+thresholds 0.3, 0.5, 0.7, and 0.9. Merge and split events are derived from the
+overlap structure itself: a predicted component overlapping multiple
+ground-truth objects indicates a merge, whereas a ground-truth object overlapped
+by multiple predicted components indicates a split.
 
 \subsection{Semantic Segmentation with Instance Recovery}
 
-It is worth stating explicitly that both the custom U-Net and nnU-Net are trained as \textit{semantic} segmentation models — they produce binary foreground/background masks, not instance-labelled outputs. The object-level metrics described above are therefore computed by applying connected-component labelling to the semantic predictions in post-processing, recovering pseudo-instances that are then matched against ground-truth instance masks. This is a deliberate pipeline choice rather than a limitation: the research question is not whether these models perform well as end-to-end instance segmentation systems, but whether their semantic outputs, when subjected to the same standard post-processing step, yield biologically reliable instance-level behaviour. Making this step explicit is important because it means any difference in object-level metrics between models reflects differences in their boundary prediction quality and foreground consistency, not differences in instance-aware training objectives.
-
-\section{Summary of Completion Status}
-
-Table~\ref{tab:completion} summarises the final completion state at submission.
-
-\begin{table}[ht]
-\centering
-\small
-\begin{tabular}{|p{7cm}|p{2.5cm}|p{3cm}|}
-\hline
-\textbf{Component} & \textbf{Status} & \textbf{Notes} \\
-\hline
-Data loading pipeline (pad\_collate\_fn, split alignment) & Complete & \\
-\hline
-Custom U-Net architecture & Complete & \\
-\hline
-U-Net training & Complete & Best checkpoint at epoch 48 (val\_loss 0.9348) \\
-\hline
-nnU-Net configuration and training & Complete & Best EMA Dice 0.8992 \\
-\hline
-nnU-Net test-set inference & Complete & Predictions generated for test split \\
-\hline
-Evaluation framework (all metrics) & Complete & Executed on U-Net and nnU-Net \\
-\hline
-ECE (voxel-level calibration) & Complete & Computed from saved probability maps \\
-\hline
-Full results and comparison & Complete & Included in Conclusions chapter \\
-\hline
-\end{tabular}
-\caption{Completion status of pipeline components at time of writing.}
-\label{tab:completion}
-\end{table}
+Both models remain semantic segmentation systems throughout training; neither is
+given an instance-aware loss or detector head. The object-level behaviour is
+therefore assessed by applying the same connected-component post-processing to
+both models at evaluation time. This is a deliberate methodological choice. The
+question being asked is not whether either system is the best possible instance
+segmentation model, but whether standard semantic segmentation outputs are
+sufficiently biologically faithful once they are converted into object-level
+predictions in the same way for both models.
 
 \chapter{Results and Analysis}
+\label{chap:results}
 
-This chapter presents the experimental results of evaluating the custom U-Net
-and nnU-Net on the 5,677-image held-out test set. Results are organised to
-address the three claims of the central hypothesis: that Dice compresses the
-true performance gap, that Dice is blind to failure mode, and that Dice provides
-false security via corner cases.
+\section{Test-Set Overview}
+\label{sec:test-overview}
 
-\section{Training Convergence}
+The held-out test set contains 3,312 images drawn from biological sources not
+seen during training. Of these, 2,694 (81.3\%) contain at least one
+mitochondrion in the ground truth (\emph{GT-positive}), while the remaining 618
+(18.7\%) are background-only slices. Because background-only images allow any
+model to achieve trivially perfect background Dice and an object count of zero
+by predicting nothing, the distinction between GT-positive and GT-empty cases is
+maintained throughout the analysis. Unless otherwise stated, all aggregate
+figures are reported over all 3,312 test images; supplementary GT-positive-only
+figures are provided where the difference is diagnostically meaningful.
 
-The U-Net was trained on the Hastings compute cluster using a single NVIDIA
-GeForce RTX 2080 Ti (11 GB). Training early-stopped after 148 epochs; the best
-checkpoint was at epoch 48 (validation loss 0.9348, validation Dice 0.6234).
-nnU-Net trained for 969 epochs and achieved a best exponential-moving-average
-(EMA) validation Dice of 0.8992. Note that these validation Dice values are not directly comparable: the U-Net
-metric is computed per full image and averaged, whereas nnU-Net reports an
-exponential-moving-average over 256$\times$384 patch predictions on an
-internal held-out subset.  Patch-based evaluation inflates Dice relative to
-full-image evaluation, so the gap (0.623 vs.\ 0.899) reflects both genuine
-model quality differences and methodological differences in measurement.  The
-fair head-to-head comparison is on the shared test set using identical
-\texttt{evaluate.py} code, reported in Chapter~4. Contributing
-factors include nnU-Net's larger batch size (33 vs.\ 4, constrained by GPU
-memory for full-image U-Net training), its extensive automatic augmentation
-pipeline, and its polynomial learning rate decay which sustains gradient
-updates throughout training compared to the U-Net's \texttt{ReduceLROnPlateau}
-scheduler.
+\section{nnU-Net Evaluation}
+\label{sec:nnunet-results}
 
-\begin{figure}[ht]
-\centering
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/convergence/convergence_unet.png}
-  \caption{U-Net: early-stopped at epoch 148; best checkpoint at epoch 48.}
-\end{subfigure}
-\vspace{0.5em}
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/convergence/convergence_nnunet.png}
-  \caption{nnU-Net: 969 epochs; best EMA validation Dice 0.8992.}
-\end{subfigure}
-\caption{Training convergence curves for both models. The U-Net's early stopping and lower plateau reflect the GPU memory constraints and smaller batch size. The two validation Dice axes are not directly comparable: the U-Net metric is per-image, whereas nnU-Net reports an EMA over patch predictions.}
-\label{fig:convergence}
-\end{figure}
+\subsection{Training Convergence}
+\label{sec:nnunet-convergence}
 
-\section{Voxel-Level Performance}
+nnU-Net trained for the full 1,000 epochs. The EMA pseudo-Dice on the
+validation fold rose rapidly from 0.335 at epoch~1 to 0.749 by epoch~100,
+after which improvement continued more slowly, with a sustained plateau through
+the middle training phase. A renewed improvement phase began after epoch~800,
+reaching a peak EMA pseudo-Dice of 0.855 at epoch~989 before declining
+slightly to 0.833 at the final epoch~999. The \texttt{checkpoint\_best.pth}
+saved at epoch~989 was used for all test-set inference, in preference to
+\texttt{checkpoint\_final.pth}.
 
-Table~\ref{tab:voxel} reports voxel-level metrics for both models at the
-default probability threshold of 0.5. All reported differences are statistically
-significant after paired Wilcoxon signed-rank tests with Benjamini--Hochberg
-false discovery rate correction at $\alpha = 0.05$, except recall at $t=0.5$ (see
-Section~\ref{sec:stats}).
+\subsection{Voxel-Level Performance}
+\label{sec:nnunet-voxel}
+
+Table~\ref{tab:nnunet-voxel} summarises the voxel-level metrics at the default
+prediction threshold of 0.5, for all test cases and for GT-positive cases only.
+All values report mean $\pm$ standard deviation and the median with
+interquartile range.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Voxel-level metrics at threshold $t = 0.5$ on the test set
-($n = 5{,}677$). Mean (standard deviation) reported except for HD95, which is
-reported as median over finite cases. Recall is the only non-significant
-difference at BH-corrected $\alpha = 0.05$.}
-\label{tab:voxel}
-\begin{tabular}{lrr}
+\caption{nnU-Net voxel-level metrics at threshold~0.5 on the held-out test set.
+  \emph{All}: all 3,312 cases; \emph{GT$+$}: GT-positive cases only ($n=2{,}694$).}
+\label{tab:nnunet-voxel}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Metric} & \textbf{U-Net} & \textbf{nnU-Net} \\
+ & \multicolumn{2}{c}{\textbf{All} ($n = 3{,}312$)}
+ & \multicolumn{2}{c}{\textbf{GT-positive} ($n = 2{,}694$)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+\textbf{Metric} & Mean $\pm$ SD & Median [IQR]
+                & Mean $\pm$ SD & Median [IQR] \\
 \midrule
-Dice FG (mean)         & 0.191 (0.287) & 0.312 (0.379) \\
-Dice FG (median)       & 0.070         & 0.128         \\
-Dice BG (mean)         & 0.941 (0.056) & 0.949 (0.060) \\
-Overall Dice (mean)    & 0.566 (0.153) & 0.630 (0.202) \\
-IoU (mean)             & 0.148 (0.270) & 0.267 (0.373) \\
-Precision (mean)       & 0.204 (0.302) & 0.324 (0.384) \\
-Recall (mean)          & 0.210 (0.311) & 0.310 (0.383) \\
-HD95 (median, px)      & 160.5         & 136.7         \\
-Boundary F1 @ 2px      & 0.146 (0.291) & 0.261 (0.393) \\
-Boundary F1 @ 5px      & 0.182 (0.297) & 0.297 (0.390) \\
-ECE                    & 0.090 (0.082) & 0.086 (0.087) \\
+Dice FG      & $0.686 \pm 0.352$ & $0.854\ [0.520{-}0.943]$
+             & $0.643 \pm 0.342$ & $0.804\ [0.442{-}0.909]$ \\
+Dice BG      & $0.988 \pm 0.025$ & $0.995\ [0.986{-}0.999]$
+             & $0.985 \pm 0.027$ & $0.993\ [0.984{-}0.997]$ \\
+Dice Mean    & $0.837 \pm 0.179$ & $0.922\ [0.747{-}0.968]$
+             & $0.814 \pm 0.174$ & $0.894\ [0.706{-}0.950]$ \\
+IoU (FG)     & $0.614 \pm 0.350$ & $0.745\ [0.351{-}0.892]$
+             & $0.555 \pm 0.326$ & $0.673\ [0.283{-}0.833]$ \\
+Precision    & $0.773 \pm 0.350$ & $0.932\ [0.810{-}0.990]$
+             & $0.750 \pm 0.350$ & $0.917\ [0.762{-}0.963]$ \\
+Recall       & $0.659 \pm 0.365$ & $0.823\ [0.401{-}0.961]$
+             & $0.610 \pm 0.354$ & $0.756\ [0.328{-}0.913]$ \\
+BF1 (2\,px)  & $0.684 \pm 0.354$ & $0.837\ [0.516{-}0.967]$
+             & $0.641 \pm 0.344$ & $0.775\ [0.435{-}0.909]$ \\
+BF1 (5\,px)  & $0.729 \pm 0.354$ & $0.901\ [0.627{-}1.000]$
+             & $0.696 \pm 0.350$ & $0.853\ [0.566{-}0.954]$ \\
+ECE          & $0.018 \pm 0.038$ & $0.007\ [0.001{-}0.018]$
+             & $0.022 \pm 0.040$ & $0.010\ [0.004{-}0.022]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-nnU-Net outperforms the U-Net on foreground Dice, background Dice, overall Dice,
-IoU, precision, boundary F1, and calibration. The advantage is most pronounced
-on boundary quality: nnU-Net's Boundary F1 at 2-pixel tolerance is 0.261 versus
-0.146, indicating substantially tighter boundary localisation. The recall
-difference at $t=0.5$ is the only non-significant voxel-level comparison
-($p_{\mathrm{BH}} = 0.277$). Absolute overlap remains modest for both models on
-this held-out test set. This is not explained solely by empty slices: even on
-the 4,710 ground-truth-positive images, foreground Dice is 0.153 for U-Net and
-0.207 for nnU-Net. The per-image Dice distribution is highly polarised rather
-than clustered around a single value: for nnU-Net, 1,447 test images (25.5\%)
-have Dice exactly 0, while 1,216 (21.4\%) reach Dice $> 0.85$.
+At threshold~0.5, nnU-Net achieves a mean foreground Dice of 0.686 over the
+full test set. The median of 0.854 is substantially higher than the mean,
+reflecting a left-skewed distribution in which a minority of difficult or
+low-signal images pull the mean downward. Over GT-positive images exclusively,
+the mean foreground Dice falls to 0.643 and the median to 0.804, as the 618
+background-only cases (all trivially achievable predictions) are excluded.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{../figures/dice_distribution_overlay.png}
-\caption{Per-image foreground Dice distribution on the 5,677-image test set
-for both models. The distribution is highly polarised: a large spike at Dice = 0
-(images on which the model predicts no foreground) coexists with a secondary
-cluster above 0.85. nnU-Net shifts the high-Dice cluster rightward and has a
-larger fraction of cases above 0.50.}
-\label{fig:dice_dist}
-\end{figure}
+Precision (0.773) exceeds recall (0.659), indicating that the model is more
+conservative than permissive: it tends to under-predict foreground rather than
+hallucinate it. This asymmetry is consistent across the test set and has direct
+implications for object-level counting behaviour, discussed in
+Section~\ref{sec:nnunet-objects}.
 
-Threshold sensitivity curves (evaluating all voxel metrics at $t \in
-\{0.3, 0.4, 0.5, 0.6, 0.7\}$) confirm that nnU-Net maintains its advantage
-consistently across all thresholds; the ranking between models is stable and
-does not depend on the choice of operating point.
+\paragraph{Hausdorff Distance.}
+HD95 is undefined when either the prediction or the ground truth contains no
+foreground, which affects 409 test images (12.3\%). Among the remaining 2,903
+finite cases, the mean HD95 is 40.4\,px (SD~65.7), but the median is
+8.9\,px, confirming that the majority of predictions are spatially close to the
+ground-truth boundary while a smaller subset exhibits large localised
+deviations. For GT-positive cases only (2,363 finite), the mean rises to
+49.6\,px and the median to 21.0\,px, as the easy background-only cases no
+longer contribute.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{../figures/threshold_curves/threshold_sensitivity.png}
-\caption{Threshold sensitivity of key voxel-level metrics evaluated at five
-decision thresholds $t \in \{0.3, 0.4, 0.5, 0.6, 0.7\}$.  nnU-Net (orange)
-maintains higher scores than U-Net (blue) across all metrics and all
-thresholds, confirming that the performance gap is not an artefact of
-threshold choice.}
-\label{fig:threshold}
-\end{figure}
+\paragraph{Calibration.}
+The mean ECE of 0.018 (median~0.007) indicates well-calibrated probability
+maps overall: the model's foreground probabilities are close to the empirical
+foreground frequency across the test set. The low median relative to the mean
+again reflects a small proportion of poorly calibrated images.
 
-\section{Object-Level and Biological Performance}
-\label{sec:object}
+\subsection{Threshold Sensitivity}
+\label{sec:nnunet-threshold}
 
-Table~\ref{tab:object} reports object-level metrics derived from connected-component
-matching against the ground-truth instance masks.
+Table~\ref{tab:nnunet-threshold} reports voxel metrics at five probability
+thresholds spanning the operating range 0.30--0.70. All values are means over
+all 3,312 test cases; HD95 uses the per-threshold median to avoid inflation by
+the cases that remain undefined at each threshold.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Object-level metrics on the test set ($n = 5{,}677$). All differences
-significant at BH-corrected $\alpha = 0.05$ unless noted.}
-\label{tab:object}
-\begin{tabular}{lrr}
+\caption{nnU-Net voxel metrics at five probability thresholds (mean over all
+  test cases; HD95 is median of finite cases only).}
+\label{tab:nnunet-threshold}
+\begin{tabular}{lrrrrr}
 \toprule
-\textbf{Metric} & \textbf{U-Net} & \textbf{nnU-Net} \\
+\textbf{Metric} & $t=0.30$ & $t=0.40$ & $t=0.50$ & $t=0.60$ & $t=0.70$ \\
 \midrule
-GT objects per image (mean)          & 5.88          & 5.88          \\
-Predicted objects per image (mean)   & 20.16         & 6.04          \\
-Object count error (mean)            & 15.03 (15.24) & 1.49 (2.31)   \\
-Object count error (median)          & 11.0          & 1.0           \\
-Signed count error (mean)            & $+$14.28      & $+$0.16       \\
-Merge rate (mean)                    & 0.032         & 0.030         \\
-Split rate (mean)                    & 0.216         & 0.053         \\
-Connectivity error (mean)            & 0.249         & 0.083         \\
-PQ @ IoU $\geq$ 0.5 (mean)          & 0.102 (0.180) & 0.223 (0.378) \\
-Object precision @ IoU 0.5 (mean)   & 0.115         & 0.248         \\
-Object recall @ IoU 0.5 (mean)      & 0.130         & 0.251         \\
+Dice FG      & 0.693 & 0.689 & 0.686 & 0.681 & 0.676 \\
+Dice BG      & 0.988 & 0.988 & 0.988 & 0.987 & 0.987 \\
+Dice Mean    & 0.840 & 0.838 & 0.837 & 0.834 & 0.831 \\
+IoU (FG)     & 0.621 & 0.617 & 0.614 & 0.609 & 0.603 \\
+Precision    & 0.764 & 0.769 & 0.773 & 0.776 & 0.779 \\
+Recall       & 0.675 & 0.666 & 0.659 & 0.650 & 0.640 \\
+BF1 (2\,px)  & 0.690 & 0.687 & 0.684 & 0.680 & 0.675 \\
+BF1 (5\,px)  & 0.734 & 0.731 & 0.729 & 0.725 & 0.720 \\
+HD95 (med.)  & 9.0   & 9.0   & 8.9   & 9.1   & 10.0  \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:qual_compare} provides a qualitative illustration of the
-quantitative gap: on the same test image, U-Net produces many small spurious
-fragments while nnU-Net recovers individual instances that closely match the
-ground truth.
+Foreground Dice peaks weakly at $t=0.30$ (0.693) and declines monotonically to
+0.676 at $t=0.70$, a total spread of 0.017 across the full operating range.
+Precision rises and recall falls as the threshold increases, as expected, but
+neither metric changes by more than 0.019 across the five thresholds. The HD95
+median is essentially stable at 8.9--9.1\,px across $t \in \{0.30, 0.40, 0.50,
+0.60\}$ before a small rise to 10.0\,px at $t=0.70$. The flatness of all curves
+indicates that nnU-Net's metric rankings are not sensitive to the choice of
+decision threshold within this range, and $t=0.5$ is a defensible default.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{../figures/eval_instances/mito_17141_unet_vs_nnunet_instances.png}
-\caption{Qualitative comparison on test image \texttt{mito\_17141}.
-Each predicted connected component is shown in a distinct colour alongside
-the ground-truth instance mask (far left).  U-Net over-segments heavily,
-producing numerous small fragments not present in the ground truth.
-nnU-Net recovers a small number of large components that closely match
-the annotated instances.}
-\label{fig:qual_compare}
-\end{figure}
+\subsection{Object-Level and Biological Performance}
+\label{sec:nnunet-objects}
 
-\subsection{Dice compresses the true gap (Claim 1)}
-
-Foreground Dice is 0.191 for U-Net versus 0.312 for nnU-Net, whereas the
-object-level gap is much larger. U-Net predicts a mean of 20.16 objects per
-image when the ground truth contains 5.88: a systematic over-prediction of
-approximately 14 objects. nnU-Net predicts 6.04 objects per image, with signed
-count error of only $+0.16$. Object count error is 15.03 for U-Net versus 1.49
-for nnU-Net, a tenfold difference. Panoptic Quality is 0.102 versus 0.223, a
-2.2-fold gap. These ratios are far larger than the overlap gap, confirming that
-Dice understates how different the two models are at the biological task.
-
-\subsection{Dice is blind to failure mode (Claim 2)}
-
-The merge rates of both models are nearly identical: 0.032 (U-Net) versus 0.030
-(nnU-Net), a difference of less than 1 percentage point. Yet split rates diverge
-sharply: U-Net splits 21.6\% of ground-truth objects on average, nnU-Net only
-5.3\% --- a fourfold difference. This means the U-Net's catastrophic object
-count over-prediction is driven almost entirely by fragmentation, not fusion.
-Dice is structurally unable to separate these two failure modes: a pixel
-correctly placed on either side of a spurious boundary contributes identically
-to the Dice numerator regardless of whether it is causing a merge or a split.
-The object-level suite makes this distinction directly observable.
-
-\begin{figure}[ht]
-\centering
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/scatter/scatter_dice_vs_split_rate.png}
-  \caption{Dice vs.\ split rate. U-Net (blue) shows high split rates even at high Dice values, illustrating Claim~2: Dice is blind to fragmentation failures.}
-\end{subfigure}
-\vspace{0.5em}
-\begin{subfigure}[b]{\textwidth}
-  \includegraphics[width=\textwidth]{../figures/scatter/scatter_dice_vs_pq_iou50.png}
-  \caption{Dice vs.\ Panoptic Quality. nnU-Net (orange) consistently achieves higher PQ for any given Dice value, illustrating Claim~1: Dice compresses the true performance gap.}
-\end{subfigure}
-\caption{Per-image scatter plots (5,677 test cases). Both panels show that Dice
-fails to capture the full extent of biological error: high Dice is compatible
-with poor instance-level behaviour, and the PQ gap between models is
-substantially larger than the Dice gap.}
-\label{fig:scatter_claims}
-\end{figure}
-
-\subsection{Statistical significance}
-\label{sec:stats}
-
-Paired Wilcoxon signed-rank tests were applied to all 27 metrics across the
-5,677 shared test cases. After Benjamini--Hochberg correction at $\alpha = 0.05$,
-26 of 27 metric differences are statistically significant. The only
-non-significant comparison is recall at threshold 0.5
-($p_{\mathrm{BH}} = 0.277$). The remaining differences are all significant,
-including small but consistent improvements for nnU-Net on HD95 (median 136.7
-vs.\ 160.5~px), ECE (0.086 vs.\ 0.090), and merge rate (0.030 vs.\ 0.032).
-
-\section{Corner Case Analysis: Dice Provides False Security (Claim 3)}
-
-Table~\ref{tab:corner} summarises the corner case analysis. A corner case is
-defined as a test image satisfying:
-\[
-\text{Dice}_\text{FG} > 0.85 \;\wedge\;
-\bigl(r_\text{merge} > Q_{75} \;\vee\;
-e_\text{count} > Q_{75} \;\vee\;
-r_\text{split} > Q_{75} \;\vee\;
-\text{HD95} > Q_{75}\bigr)
-\]
-where $Q_{75}$ denotes the 75th percentile of each metric across the
-model's usable test cases.
+Table~\ref{tab:nnunet-objects} summarises the object-level metrics. Predicted
+instances are recovered by connected-component labelling of the binary
+foreground mask, with predicted components smaller than 10\,px removed before
+matching. Ground-truth instances use the original non-binary instance masks
+(labels 0--255) from the dataset.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Corner case analysis: images with Dice $> 0.85$ that still fail on
-biological metrics.}
-\label{tab:corner}
-\begin{tabular}{lrr}
+\caption{nnU-Net object-level metrics. \emph{All}: 3,312 test cases;
+  \emph{GT$+$}: GT-positive cases only ($n = 2{,}694$).}
+\label{tab:nnunet-objects}
+\begin{tabular}{lcccc}
 \toprule
-& \textbf{U-Net} & \textbf{nnU-Net} \\
+ & \multicolumn{2}{c}{\textbf{All}} & \multicolumn{2}{c}{\textbf{GT-positive}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+\textbf{Metric} & Mean $\pm$ SD & Median [IQR]
+                & Mean $\pm$ SD & Median [IQR] \\
 \midrule
-Usable test cases              & 4,916   & 5,210   \\
-High-Dice cases (Dice $>0.85$) & 424     & 1,216   \\
-Corner cases                   & 15      & 167     \\
-Corner rate (of all usable)    & 0.31\%  & 3.21\%  \\
-Corner rate (of high-Dice)     & 3.5\%   & 13.7\%  \\
-$Q_{75}$ object count error    & 23.0    & 2.0     \\
-$Q_{75}$ split rate            & 0.25    & 0.0     \\
+GT objects per image     & $6.57 \pm 7.14$ & $3\ [1{-}11]$
+                         & $8.08 \pm 7.11$ & $5\ [2{-}13]$ \\
+Pred.\ objects per image & $4.85 \pm 5.42$ & $3\ [0{-}8]$
+                         & $5.90 \pm 5.45$ & $4\ [1{-}10]$ \\
+Count error $|$pred$-$gt$|$ & $2.62 \pm 3.74$ & $1\ [0{-}4]$
+                         & $3.15 \pm 3.90$ & $2\ [1{-}4]$ \\
+Count error signed        & $-1.72 \pm 4.24$ & $-1\ [-3{-}0]$
+                         & $-2.18 \pm 4.52$ & $-1\ [-4{-}0]$ \\
+Merge rate               & $0.035 \pm 0.090$ & $0.000$
+                         & $0.044 \pm 0.098$ & $0.000$ \\
+Split rate               & $0.023 \pm 0.156$ & $0.000$
+                         & $0.028 \pm 0.172$ & $0.000$ \\
+Connectivity error        & $0.058 \pm 0.181$ & $0.000$
+                         & $0.071 \pm 0.199$ & $0.000$ \\
+Mean matched IoU          & $0.519 \pm 0.365$ & $0.652\ [0.000{-}0.805]$
+                         & $0.639 \pm 0.311$ & $0.719\ [0.478{-}0.829]$ \\
+PQ (IoU $>0.5$)           & $0.551 \pm 0.340$ & $0.589\ [0.314{-}0.837]$
+                         & $0.476 \pm 0.296$ & $0.534\ [0.259{-}0.711]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-nnU-Net achieves high Dice ($>0.85$) on 1,216 images, far more than the
-U-Net's 424 --- confirming it is the substantially better model. However, 167
-of those 1,216 high-Dice nnU-Net predictions (13.7\%) still fail on at least
-one biological metric above its 75th percentile. The corresponding figure for
-U-Net is 15 of 424 (3.5\%). These rates are not directly comparable across
-models because the cutoffs are model-specific, but they still demonstrate the
-same core point: high Dice does not guarantee biological reliability. The
-75th-percentile thresholds for nnU-Net are notably strict (object count error
-$> 2$, split rate $> 0$) because nnU-Net is generally accurate, making even
-small deviations from zero biologically meaningful. Explicit object-level
-evaluation is therefore required even for high-Dice predictions.
+\paragraph{Object count.}
+The signed count error of $-1.72$ (median~$-1$) confirms a systematic
+under-prediction of objects: 52.0\% of test images have fewer predicted objects
+than ground-truth objects, 34.4\% match exactly, and only 13.7\% over-predict.
+This under-counting is consistent with the recall gap observed at the voxel
+level (0.659 vs.\ precision 0.773) and is expected for a model trained with no
+instance-aware objective.
 
-\begin{figure}[ht]
+\paragraph{Topology errors.}
+Merge rate (0.035) and split rate (0.023) are both low in absolute terms, and
+the median for both is exactly zero, indicating that most images have no merge
+or split events. However, the means are appreciably higher than the medians,
+pointing to a subset of images where topology errors are concentrated. The
+split rate rising with image density is explored further in
+Section~\ref{sec:stratified}.
+
+\paragraph{Object precision and recall.}
+Table~\ref{tab:nnunet-obj-pr} reports object-level precision and recall at four
+IoU thresholds for all test cases.
+
+\begin{table}[ht]
 \centering
-\includegraphics[width=\textwidth]{../figures/corner_cases/nnunet_mito_18203_corner.png}
-\caption{Example nnU-Net corner case (image \texttt{mito\_18203}).  The
-prediction achieves Dice $> 0.85$, yet at least one object-level metric
-exceeds the 75th-percentile cutoff for this model.  The high pixel-level
-agreement conceals a topological failure --- in this case an elevated split
-rate --- that would corrupt downstream instance-level analyses such as
-organelle counting or morphology estimation.}
-\label{fig:corner_case}
-\end{figure}
+\small
+\caption{nnU-Net object-level precision and recall at four IoU thresholds
+  (mean $\pm$ SD over all 3,312 test cases).}
+\label{tab:nnunet-obj-pr}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{IoU thr.} & $\geq 0.3$ & $\geq 0.5$ & $\geq 0.7$ & $\geq 0.9$ \\
+\midrule
+Obj.\ Precision & $0.730 \pm 0.375$ & $0.695 \pm 0.377$ & $0.627 \pm 0.382$ & $0.335 \pm 0.392$ \\
+Obj.\ Recall    & $0.634 \pm 0.366$ & $0.606 \pm 0.372$ & $0.556 \pm 0.378$ & $0.309 \pm 0.388$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At the lenient IoU threshold of 0.3, object-level precision reaches 0.730 and
+recall 0.634. These fall to 0.695 and 0.606 at IoU 0.5 and degrade further to
+0.335 and 0.309 at the strict threshold of 0.9, reflecting the fact that while
+many objects are detected, their segmentation boundaries are not always tight
+enough to achieve high IoU. Panoptic Quality at IoU $>0.5$ (mean 0.551, median
+0.589) captures this joint detection and localisation quality in a single
+number.
+
+\subsection{Corner Case Analysis: High Dice Does Not Guarantee Biological Reliability}
+\label{sec:nnunet-corner}
+
+A central claim of this dissertation is that high Dice does not guarantee
+biologically reliable predictions. To test this directly, the 1,684 test images
+on which nnU-Net achieves foreground Dice $>0.85$ (50.8\% of the test set) are
+examined for elevated object-level error. \emph{Elevated error} is defined as
+count error $>4$ (the 75th percentile of $|$pred$-$gt$|$ over the full test
+set) or split rate $>0$ (any split event present). Under this definition, 289
+of the 1,684 high-Dice images (17.2\%) still exhibit at least one elevated
+biological metric.
+
+This rate is not negligible. A downstream biologist using Dice $>0.85$ as a
+quality gate would accept approximately one in six predictions as reliable when
+they are in fact topologically defective. The practical consequence is that
+organelle counting or morphology analysis performed on this subset would include
+a systematic contamination of incorrectly structured objects, even though the
+pixel-level quality appears excellent.
+
+The 75th-percentile thresholds for nnU-Net are notably strict (count error $>4$,
+any split event), because the model is generally accurate and small deviations
+from zero are biologically meaningful. This strictness reinforces the point: the
+corner cases are not failures of a weak model but are genuine topological errors
+in a strong one, invisible to the Dice filter.
 
 \section{Stratified Analysis}
 \label{sec:stratified}
 
 \subsection{By foreground density}
 
-Table~\ref{tab:fg_strat} stratifies results by foreground ratio quartile
-(excluding empty slices).
+Table~\ref{tab:fg-strat} stratifies GT-positive test images by foreground pixel
+ratio quartile ($n \approx 674$ per quartile). Foreground ratio is the fraction
+of image pixels labelled as mitochondria in the ground truth.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Key metrics stratified by foreground pixel ratio quartile (non-empty
-slices only; $n \approx 1{,}178$ per quartile).}
-\label{tab:fg_strat}
-\begin{tabular}{lrrrrrr}
+\caption{nnU-Net metrics stratified by foreground pixel-ratio quartile
+  (GT-positive images only; $n \approx 674$ per quartile).}
+\label{tab:fg-strat}
+\begin{tabular}{lrrrr}
 \toprule
-\textbf{Quartile} & \multicolumn{2}{c}{\textbf{Dice FG}} & \multicolumn{2}{c}{\textbf{Split rate}} & \multicolumn{2}{c}{\textbf{Count error}} \\
-& U & nn & U & nn & U & nn \\
+\textbf{Quartile (FG ratio)} & \textbf{Dice FG} & \textbf{Split rate}
+  & \textbf{Count error} & \textbf{PQ} \\
 \midrule
-Q1 (sparse, 0.000--0.034) & 0.132 & 0.213 & 0.088 & 0.022 & 14.85 & 1.26 \\
-Q2 (0.034--0.064)         & 0.159 & 0.204 & 0.199 & 0.040 & 18.49 & 1.53 \\
-Q3 (0.064--0.094)         & 0.165 & 0.189 & 0.257 & 0.043 & 18.10 & 1.65 \\
-Q4 (dense,  $>$0.094)     & 0.158 & 0.223 & 0.497 & 0.150 & 15.42 & 2.25 \\
+Q1 (0.000--0.019) & 0.496 & 0.012 & 1.18 & 0.387 \\
+Q2 (0.019--0.055) & 0.625 & 0.031 & 2.06 & 0.472 \\
+Q3 (0.055--0.123) & 0.700 & 0.029 & 3.53 & 0.533 \\
+Q4 ($>$0.123)     & 0.749 & 0.041 & 5.84 & 0.513 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-U-Net's split rate escalates from 0.088 at the lowest foreground density to
-0.497 at the highest --- nearly half of all ground-truth objects are fragmented
-on dense images. nnU-Net's split rate rises modestly (0.022 to 0.150) but
-remains far lower. Dice for U-Net stays relatively flat across all quartiles
-(0.132--0.165), masking the dramatic increase in splitting. This is a clear
-illustration of Claim 1: Dice is not sensitive to the worsening split behaviour.
-
-\subsection{By ground-truth object count}
-
-On images with very few objects (Q1: 1--3 mitochondria), U-Net splits 39.8\%
-of them, while nnU-Net splits 8.9\% --- indicating that even simple scenes are
-frequently fragmented by the U-Net. Both models perform best on crowded images
-(Q4: 10--73 objects), where foreground signal is stronger: Dice rises to 0.241
-for U-Net and 0.291 for nnU-Net. nnU-Net maintains a large object count
-advantage across all object-count quartiles, with mean error between 1.34 and
-2.24 compared with 13.46 to 20.18 for U-Net.
+Several patterns emerge. Dice FG improves monotonically with foreground density
+(0.496 in Q1 to 0.749 in Q4), as images with more foreground signal are easier
+to segment. Object count error, however, follows the opposite trend: it
+increases from 1.18 in the sparsest quartile to 5.84 in the densest. Dense
+images contain more ground-truth objects, and the model's under-counting
+tendency translates to larger absolute errors. Split rate rises modestly from
+0.012 to 0.041, indicating that closely packed mitochondria in dense images are
+moderately more prone to fragmentation. PQ is non-monotone, peaking in Q3 and
+falling back in Q4, suggesting that the joint detection-and-localisation quality
+is not monotonically better in dense images despite higher Dice.
 
 \subsection{By imaging type}
+\label{sec:type-strat}
 
-Sample names in CEM-MitoLab carry a suffix indicating acquisition type
-(\texttt{\_3D} for volume EM modalities such as FIB-SEM and SBF-SEM;
-\texttt{\_2D} for single-section TEM; other naming conventions for the
-remaining samples). Table~\ref{tab:type_strat} stratifies by this proxy.
+% TODO: Stratification by imaging type (\texttt{\_2D}/\texttt{\_3D}/other)
+% will be added once the full stratified analysis script is run on the resplit data.
+% The old dissertation carried a preliminary version based on the earlier (pre-resplit)
+% evaluation; that table is not reproduced here because the dataset split has changed.
 
-\begin{table}[ht]
-\centering
-\small
-\caption{Key metrics stratified by imaging type proxy.}
-\label{tab:type_strat}
-\begin{tabular}{lrrrrrrr}
-\toprule
-\textbf{Type} & $n$ & \multicolumn{2}{c}{\textbf{Dice FG}} & \multicolumn{2}{c}{\textbf{PQ}} & \multicolumn{2}{c}{\textbf{Count error}} \\
-& & U & nn & U & nn & U & nn \\
-\midrule
-2D TEM      & 1,388 & 0.057 & 0.120 & 0.070 & 0.298 & 13.0 & 1.98 \\
-3D volume EM & 1,020 & 0.284 & 0.439 & 0.272 & 0.483 &  3.3 & 1.33 \\
-Other        & 3,269 & 0.108 & 0.111 & 0.063 & 0.110 & 19.6 & 1.34 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\section{U-Net Evaluation}
+\label{sec:unet-results}
 
-3D volume EM images are substantially easier for both models: structural
-consistency within a volume produces more regular mitochondrial appearances.
-2D TEM is hardest, with U-Net achieving a mean Dice of only 0.057. Crucially,
-the PQ gap on 2D TEM is 4.3-fold (0.298 vs.\ 0.070) despite the Dice gap
-being only 2.1-fold --- again demonstrating that Dice understates the true
-performance difference. The ``other'' category, which constitutes 58\% of test
-images, shows near-identical Dice between models (0.108 vs.\ 0.111) yet an
-object count error ratio of 14.6:1 (19.6 vs.\ 1.34) --- a case where Dice
-would mislead an evaluator into concluding the models are equivalent when they
-are not.
+% TODO: U-Net training is currently in progress (epoch ~87 of 1,000 as of
+% 2026-03-15; estimated to reach early stopping or the job time limit by
+% 2026-03-16 22:00). This section will be completed once training finishes,
+% inference is run via \texttt{predict\_unet.py}, and the shared evaluation
+% script is executed with \texttt{--model unet}.
+
+\section{Model Comparison}
+\label{sec:comparison}
+
+% TODO: The full model comparison --- voxel-level, object-level, statistical
+% significance (Wilcoxon signed-rank with Benjamini--Hochberg correction), and
+% stratified analysis --- will be written once both models have been evaluated.
+% All necessary infrastructure is in place: evaluate.py accepts --model unet or
+% --model nnunet and produces identically structured output files, so the
+% comparison will be performed on a consistent per-image basis.
 
 \chapter{Conclusions}
 
@@ -859,68 +991,48 @@ are not.
 This dissertation asked whether the Dice similarity coefficient is a sufficient
 evaluation criterion for mitochondria segmentation in electron microscopy, using
 a comparison between a custom U-Net and nnU-Net on CEM-MitoLab as the
-experimental vehicle. The results support a negative answer on three distinct
-grounds.
+experimental vehicle. nnU-Net has been fully evaluated on the held-out test set
+under the corrected evaluation pipeline; the U-Net comparison and the
+cross-model statistical analysis will be incorporated once U-Net training
+completes.
 
-\textbf{Dice compresses the true performance gap.} nnU-Net achieves a mean
-foreground Dice of 0.312 versus the U-Net's 0.191 at threshold 0.5. The same
-models differ tenfold on object count error (1.49 vs.\ 15.03), fourfold on
-split rate (0.053 vs.\ 0.216), and 2.2-fold on Panoptic Quality (0.223
-vs.\ 0.102). These ratios are far larger than the overlap gap, confirming that
-Dice compresses biologically critical performance differences into a range that
-appears smaller than their object-level consequences. An evaluator using Dice
-alone would understate how much worse the U-Net is at preserving individual
-mitochondrial identities.
-
-\textbf{Dice is blind to failure mode.} Both models produce nearly identical
-merge rates (0.032 vs.\ 0.030). Yet U-Net splits four times as many
-ground-truth objects as nnU-Net. The U-Net's object count over-prediction ---
-predicting 20.16 objects per image when 5.88 exist --- is driven almost entirely
-by fragmentation. Dice cannot detect this asymmetry because it aggregates all
-pixel-level errors without regard for spatial structure. The biological
-consequences of merging (inflated organelle size, deflated count) and splitting
-(deflated size, inflated count) are opposite and both scientifically damaging,
-yet Dice treats both identically.
-
-\textbf{Dice provides false security.} Even the better model, nnU-Net, achieves
-Dice $> 0.85$ on 1,216 test images. Of those, 167 (13.7\%) still exhibit
-elevated biological error under the corner case definition. High Dice is
-therefore not a sufficient condition for biological reliability. A downstream
-biologist screening for only high-Dice predictions would still include many
-cases whose object-level topology is incorrect.
-
-Twenty-six of 27 metric differences are statistically significant after
-Benjamini--Hochberg correction; recall at threshold 0.5 is the only
-non-significant comparison. All three findings replicate consistently across
-foreground density quartiles, object count quartiles, and imaging type strata.
+On the evidence available, the results already support a clear partial answer to
+the research question. nnU-Net achieves a mean foreground Dice of 0.686 (median
+0.854) on 3,312 test images. Yet 50.8\% of those images achieve Dice $>0.85$,
+and among them, 17.2\% still exhibit elevated object-level error under a
+conservative corner-case definition. This confirms the dissertation's central
+claim: high Dice does not guarantee biologically reliable predictions. Object
+count error, merge and split rates, and Panoptic Quality expose failures that
+are invisible to pixel-level evaluation alone.
 
 \section{Main Conclusions}
 
 \begin{enumerate}
-  \item nnU-Net is the substantially stronger segmentation model under this
-  protocol: it achieves better overlap, boundary quality, calibration, and
-  object-level accuracy on the held-out test set, and those advantages extend
-  well beyond pixel-level accuracy into biological validity.
+  \item Dice similarity coefficient should not be treated as a sufficient
+  standalone metric for a biology-facing mitochondria segmentation study,
+  because it does not directly encode instance topology or object counting
+  behaviour.
 
-  \item Dice similarity coefficient, while correlated with true model quality,
-  compresses an order-of-magnitude biological performance gap into an apparently
-  marginal overlap difference, making it an unreliable sole criterion for
-  comparing segmentation models in biological contexts.
+  \item A fair comparison between a custom U-Net and nnU-Net requires matched
+  split handling, matched preprocessing where feasible, and a shared evaluation
+  pipeline. Without that alignment, metric differences are difficult to
+  interpret.
 
-  \item Object-level failure modes --- particularly splitting --- can dominate
-  model behaviour while remaining largely invisible to voxel-level evaluation.
-  High Dice does not imply correct instance topology.
+  \item Object-level analysis is necessary alongside voxel-level analysis when
+  the downstream scientific question depends on organelle identity, count, and
+  separation rather than foreground overlap alone.
 
-  \item A robust evaluation protocol for EM mitochondria segmentation must
-  include object-level metrics (object count error, merge and split rates,
-  Panoptic Quality) and explicit corner case analysis alongside standard
-  voxel-level metrics.
+  \item nnU-Net achieves strong voxel-level performance (mean foreground Dice
+  0.686, mean precision 0.773, mean PQ 0.551) while exhibiting a systematic
+  tendency to under-count objects (signed count error~$-1.72$ on average), and
+  17.2\% of its high-Dice predictions still fail a conservative object-level
+  quality criterion.
 \end{enumerate}
 
 The central methodological contribution of this dissertation is a unified,
 reproducible evaluation pipeline that makes the metric gap measurable and
-interpretable, providing a concrete empirical case for why biologically motivated
-metrics are required alongside Dice in EM segmentation research.
+interpretable, providing a framework for assessing biologically motivated
+metrics alongside Dice in EM segmentation research.
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
@@ -932,16 +1044,15 @@ performance achievable by end-to-end instance segmentation architectures.
 nnU-Net is evaluated using a single fold rather than its default five-fold
 ensemble, likely underestimating its full capability. The U-Net was trained with
 batch size 4 due to GPU memory constraints, compared to nnU-Net's batch size of
-33, which may impede convergence independently of architecture. The comparison
+12, which may impede convergence independently of architecture. The comparison
 is confined to one dataset; results should not be assumed to generalise beyond
 the conditions represented in CEM-MitoLab.
 
-Future work could add augmentation to the U-Net baseline to disentangle
-architectural differences from training regime effects, evaluate nnU-Net with
-its full five-fold ensemble, apply the evaluation framework to additional EM
-datasets and model families, and extend the corner case analysis to 3D volumetric
-settings where merge and split errors along the $z$-axis introduce additional
-complexity.
+Future work could evaluate nnU-Net with its full five-fold ensemble, compare the
+current semantic models against genuinely instance-aware alternatives, apply the
+evaluation framework to additional EM datasets and model families, and extend
+the corner case analysis to 3D volumetric settings where merge and split errors
+along the $z$-axis introduce additional complexity.
 
 % \bibliographystyle{plain}
 \bibliographystyle{plainnat}
