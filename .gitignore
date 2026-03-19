@@ -18,8 +18,7 @@ ug_overleaf.zip
 nnUNet
 nnUNet/
 
-# Generated figures and report artifacts
-figures/**/*.png
+# Generated report artifacts
 /skeleton.aux
 /skeleton.fdb_latexmk
 /skeleton.fls
