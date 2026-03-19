@@ -73,10 +73,16 @@ error modes such as merges and splits, and whether apparently strong Dice scores
 can still conceal biologically unreliable predictions. To do this, the study
 combines voxel-level metrics with object-level metrics derived from the
 instance-labelled ground truth, together with corner-case analysis, stratified
-analysis, and non-parametric statistical testing. The main methodological
+analysis. The main methodological
 contribution is a reproducible evaluation framework that enables a controlled
 comparison between a custom architecture and nnU-Net while exposing failure
-modes that overlap metrics alone can conceal.
+modes that overlap metrics alone can conceal. On the corrected resplit test set,
+nnU-Net outperforms the custom U-Net on most voxel-level and object-level
+metrics (mean foreground Dice 0.686 vs.\ 0.636; mean PQ 0.551 vs.\ 0.480), but
+both models still exhibit biologically relevant errors among apparently strong
+predictions. Approximately 17\% of high-Dice predictions for each model still
+show elevated object-level error, supporting the dissertation's central claim
+that Dice alone is insufficient for biology-facing evaluation.
 }
 
 \maketitle
@@ -186,11 +192,9 @@ which a model achieves high Dice ($>0.85$) yet exhibits elevated biological
 error, characterising the distribution and nature of failures that pixel-level
 evaluation conceals.
 
-\item \textbf{Statistical validation} via paired Wilcoxon signed-rank tests with
-Benjamini--Hochberg false discovery rate correction across all metrics, and
-\textbf{stratified analysis} by foreground density, object count, and imaging
-type, confirming that findings are consistent across the heterogeneous conditions
-present in CEM-MitoLab.
+\item A \textbf{stratified analysis} by foreground density, showing how voxel
+overlap and object-level quality vary as mitochondrial foreground becomes more
+or less abundant in the image.
 
 \item A \textbf{controlled experimental framework} for testing whether Dice
 understates biologically meaningful performance differences, obscures distinct
@@ -218,10 +222,9 @@ Chapter~2 reviews relevant literature on EM segmentation methods, benchmark
 datasets, and evaluation metrics. Chapter~3 describes the implementation,
 covering data preparation, the data loading pipeline, training protocols for
 both models, and the evaluation framework. Chapter~4 presents the experimental
-results and analysis, covering nnU-Net's performance in full; the U-Net
-evaluation and model comparison sections are structured placeholders to be
-completed once U-Net training finishes. Chapter~5 draws conclusions and
-discusses limitations and future work.
+results and analysis, covering both models individually and then comparing them
+under the shared evaluation pipeline. Chapter~5 draws conclusions and discusses
+limitations and future work.
 
 \chapter{Background and Related Works}
 This chapter reviews the literature on deep learning (DL) methods for the
@@ -925,64 +928,259 @@ in a strong one, invisible to the Dice filter.
 
 Table~\ref{tab:fg-strat} stratifies GT-positive test images by foreground pixel
 ratio quartile ($n \approx 674$ per quartile). Foreground ratio is the fraction
-of image pixels labelled as mitochondria in the ground truth.
+of image pixels labelled as mitochondria in the ground truth. To keep the
+stratified analysis aligned with the final comparison, both models are reported
+in the same table.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{nnU-Net metrics stratified by foreground pixel-ratio quartile
+\caption{Metrics stratified by foreground pixel-ratio quartile
   (GT-positive images only; $n \approx 674$ per quartile).}
 \label{tab:fg-strat}
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrrr}
 \toprule
-\textbf{Quartile (FG ratio)} & \textbf{Dice FG} & \textbf{Split rate}
-  & \textbf{Count error} & \textbf{PQ} \\
+\textbf{Quartile (FG ratio)} & \textbf{U Dice FG} & \textbf{nn Dice FG}
+  & \textbf{U Split rate} & \textbf{nn Split rate}
+  & \textbf{U PQ} & \textbf{nn PQ} \\
 \midrule
-Q1 (0.000--0.019) & 0.496 & 0.012 & 1.18 & 0.387 \\
-Q2 (0.019--0.055) & 0.625 & 0.031 & 2.06 & 0.472 \\
-Q3 (0.055--0.123) & 0.700 & 0.029 & 3.53 & 0.533 \\
-Q4 ($>$0.123)     & 0.749 & 0.041 & 5.84 & 0.513 \\
+Q1 ($\leq 0.0037$)  & 0.461 & 0.496 & 0.015 & 0.012 & 0.353 & 0.387 \\
+Q2 (0.0037--0.0106) & 0.578 & 0.625 & 0.034 & 0.031 & 0.409 & 0.472 \\
+Q3 (0.0106--0.0235) & 0.670 & 0.700 & 0.044 & 0.029 & 0.458 & 0.533 \\
+Q4 ($>$0.0235)      & 0.740 & 0.749 & 0.086 & 0.041 & 0.446 & 0.512 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Several patterns emerge. Dice FG improves monotonically with foreground density
-(0.496 in Q1 to 0.749 in Q4), as images with more foreground signal are easier
-to segment. Object count error, however, follows the opposite trend: it
-increases from 1.18 in the sparsest quartile to 5.84 in the densest. Dense
-images contain more ground-truth objects, and the model's under-counting
-tendency translates to larger absolute errors. Split rate rises modestly from
-0.012 to 0.041, indicating that closely packed mitochondria in dense images are
-moderately more prone to fragmentation. PQ is non-monotone, peaking in Q3 and
-falling back in Q4, suggesting that the joint detection-and-localisation quality
-is not monotonically better in dense images despite higher Dice.
-
-\subsection{By imaging type}
-\label{sec:type-strat}
-
-% TODO: Stratification by imaging type (\texttt{\_2D}/\texttt{\_3D}/other)
-% will be added once the full stratified analysis script is run on the resplit data.
-% The old dissertation carried a preliminary version based on the earlier (pre-resplit)
-% evaluation; that table is not reproduced here because the dataset split has changed.
+for both models, from 0.461 to 0.740 for U-Net and from 0.496 to 0.749 for
+nnU-Net. The nnU-Net advantage is therefore not confined to one density regime.
+Object-level difficulty also rises with density. Absolute count error grows from
+1.69 to 5.64 across the four quartiles for U-Net and from 1.18 to 5.84 for
+nnU-Net, while split rate rises for both models, especially for U-Net in the
+densest quartile. In other words, denser images narrow the Dice gap slightly,
+but they continue to expose a clearer object-level advantage for nnU-Net.
 
 \section{U-Net Evaluation}
 \label{sec:unet-results}
 
-% TODO: U-Net training is currently in progress (epoch ~87 of 1,000 as of
-% 2026-03-15; estimated to reach early stopping or the job time limit by
-% 2026-03-16 22:00). This section will be completed once training finishes,
-% inference is run via \texttt{predict\_unet.py}, and the shared evaluation
-% script is executed with \texttt{--model unet}.
+\subsection{Training Convergence}
+\label{sec:unet-convergence}
+
+Unlike nnU-Net, the custom U-Net does not run for a fixed 1,000-epoch schedule.
+Validation is performed every second epoch and training stops once validation
+loss fails to improve for 50 validation checks. Under this rule the U-Net
+stopped at epoch~186, with the best checkpoint selected at epoch~86 by
+validation loss. The highest observed validation pseudo-Dice occurred slightly
+later (0.817 at epoch~92), but the checkpoint used for test inference remained
+the best-loss model because the later gains in pseudo-Dice were not accompanied
+by improved validation loss.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{../figures/convergence/convergence.png}
+\caption{Training convergence for the resplit experiments. The custom U-Net
+  early-stops at epoch~186, whereas nnU-Net completes the full 1,000-epoch
+  schedule.}
+\label{fig:convergence}
+\end{figure}
+
+\subsection{Voxel-Level Performance}
+\label{sec:unet-voxel}
+
+Table~\ref{tab:unet-voxel} summarises the final U-Net voxel-level metrics at
+the default threshold of 0.5.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{U-Net voxel-level metrics at threshold~0.5 on the held-out test set.
+  \emph{All}: all 3,312 cases; \emph{GT$+$}: GT-positive cases only
+  ($n=2{,}694$).}
+\label{tab:unet-voxel}
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{\textbf{All} ($n = 3{,}312$)}
+ & \multicolumn{2}{c}{\textbf{GT-positive} ($n = 2{,}694$)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+\textbf{Metric} & Mean $\pm$ SD & Median [IQR]
+                & Mean $\pm$ SD & Median [IQR] \\
+\midrule
+Dice FG      & $0.636 \pm 0.357$ & $0.776\ [0.417{-}0.918]$
+             & $0.612 \pm 0.331$ & $0.736\ [0.423{-}0.885]$ \\
+Dice BG      & $0.985 \pm 0.024$ & $0.993\ [0.981{-}0.999]$
+             & $0.983 \pm 0.025$ & $0.990\ [0.978{-}0.996]$ \\
+Dice Mean    & $0.811 \pm 0.181$ & $0.878\ [0.693{-}0.954]$
+             & $0.798 \pm 0.167$ & $0.858\ [0.696{-}0.936]$ \\
+IoU (FG)     & $0.557 \pm 0.350$ & $0.634\ [0.264{-}0.849]$
+             & $0.514 \pm 0.312$ & $0.582\ [0.269{-}0.794]$ \\
+Precision    & $0.716 \pm 0.366$ & $0.899\ [0.607{-}0.969]$
+             & $0.711 \pm 0.347$ & $0.885\ [0.614{-}0.941]$ \\
+Recall       & $0.619 \pm 0.369$ & $0.750\ [0.325{-}0.949]$
+             & $0.591 \pm 0.346$ & $0.687\ [0.329{-}0.899]$ \\
+BF1 (2\,px)  & $0.626 \pm 0.355$ & $0.748\ [0.386{-}0.915]$
+             & $0.600 \pm 0.328$ & $0.712\ [0.392{-}0.859]$ \\
+BF1 (5\,px)  & $0.681 \pm 0.362$ & $0.839\ [0.491{-}0.973]$
+             & $0.667 \pm 0.340$ & $0.804\ [0.496{-}0.929]$ \\
+ECE          & $0.020 \pm 0.033$ & $0.009\ [0.002{-}0.025]$
+             & $0.023 \pm 0.035$ & $0.013\ [0.005{-}0.029]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The U-Net achieves a mean foreground Dice of 0.636 over the full test set and
+0.612 over GT-positive cases only. This is weaker than nnU-Net, but it is still
+strong enough to make the direct comparison scientifically meaningful. As with
+nnU-Net, the median exceeds the mean, indicating a left tail of difficult
+images rather than uniformly weak performance. Precision (0.716) again exceeds
+recall (0.619), so the model remains more likely to miss foreground than to
+hallucinate it. The mean ECE of 0.020 indicates that the predicted
+probabilities remain reasonably well calibrated.
+
+\paragraph{Hausdorff Distance.}
+HD95 is undefined on 438 images (13.2\%), slightly more than for nnU-Net. Over
+the remaining 2,874 finite cases, the mean HD95 is 47.2\,px and the median is
+18.5\,px. These values confirm that the U-Net not only has lower overlap than
+nnU-Net, but is also less spatially precise at the boundary level.
+
+\subsection{Object-Level Performance}
+\label{sec:unet-objects}
+
+Table~\ref{tab:unet-objects} summarises the U-Net object-level metrics under
+the same connected-component recovery and Hungarian matching procedure used for
+nnU-Net.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{U-Net object-level metrics. \emph{All}: 3,312 test cases;
+  \emph{GT$+$}: GT-positive cases only ($n = 2{,}694$).}
+\label{tab:unet-objects}
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{\textbf{All}} & \multicolumn{2}{c}{\textbf{GT-positive}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+\textbf{Metric} & Mean $\pm$ SD & Median [IQR]
+                & Mean $\pm$ SD & Median [IQR] \\
+\midrule
+GT objects per image       & $6.57 \pm 7.14$ & $3\ [1{-}11]$
+                           & $8.08 \pm 7.11$ & $5\ [2{-}13]$ \\
+Pred.\ objects per image   & $5.50 \pm 5.91$ & $3\ [1{-}9]$
+                           & $6.60 \pm 5.94$ & $5\ [2{-}11]$ \\
+Count error $|$pred$-$gt$|$ & $2.87 \pm 4.02$ & $1\ [0{-}4]$
+                           & $3.36 \pm 4.16$ & $2\ [1{-}5]$ \\
+Count error signed         & $-1.07 \pm 4.82$ & $0\ [-3{-}0]$
+                           & $-1.48 \pm 5.14$ & $-1\ [-4{-}0]$ \\
+Merge rate                 & $0.041 \pm 0.099$ & $0.000$
+                           & $0.050 \pm 0.108$ & $0.000$ \\
+Split rate                 & $0.036 \pm 0.131$ & $0.000$
+                           & $0.045 \pm 0.144$ & $0.000$ \\
+Connectivity error         & $0.077 \pm 0.177$ & $0.000$
+                           & $0.095 \pm 0.191$ & $0.000$ \\
+Mean matched IoU           & $0.490 \pm 0.358$ & $0.645\ [0.000{-}0.797]$
+                           & $0.603 \pm 0.299$ & $0.707\ [0.524{-}0.817]$ \\
+PQ (IoU $>0.5$)            & $0.480 \pm 0.340$ & $0.483\ [0.196{-}0.742]$
+                           & $0.416 \pm 0.280$ & $0.440\ [0.194{-}0.629]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The U-Net retains a biologically meaningful signal at the object level, but it
+falls short of nnU-Net across most metrics. PQ reaches 0.480 over all test
+cases and 0.416 over GT-positive cases only. Object-level precision and recall
+at IoU~0.5 are 0.602 and 0.561 over all cases, compared with 0.695 and 0.606
+for nnU-Net. The signed count error is less negative than nnU-Net's
+($-1.07$ vs.\ $-1.72$), which means the U-Net under-counts slightly less on
+average, but that modest advantage comes alongside weaker segmentation quality
+overall.
+
+\paragraph{Failure pattern.}
+The U-Net produces 551 zero-Dice slices, 278 completely missed GT-positive
+slices, and 160 false-positive predictions on GT-empty slices. This pattern is
+qualitatively different from nnU-Net: it misses fewer positive slices outright
+than nnU-Net (278 vs.\ 331), but it is much less reliable on empty background
+images, where nnU-Net makes only 78 false-positive predictions.
 
 \section{Model Comparison}
 \label{sec:comparison}
 
-% TODO: The full model comparison --- voxel-level, object-level, statistical
-% significance (Wilcoxon signed-rank with Benjamini--Hochberg correction), and
-% stratified analysis --- will be written once both models have been evaluated.
-% All necessary infrastructure is in place: evaluate.py accepts --model unet or
-% --model nnunet and produces identically structured output files, so the
-% comparison will be performed on a consistent per-image basis.
+Table~\ref{tab:model-comparison} summarises the key overall metrics for the two
+models. Because both were evaluated on the same 3,312 test slices under the
+same post-processing and scoring code, this comparison does not suffer from the
+split-handling confounds that affected the earlier dissertation workspace.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Direct comparison of key mean metrics at threshold~0.5 over all 3,312
+  test cases. For HD95, lower is better; for signed count error, values closer
+  to zero indicate less systematic counting bias.}
+\label{tab:model-comparison}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Metric} & \textbf{U-Net} & \textbf{nnU-Net} & \textbf{nnU-Net $-$ U-Net} \\
+\midrule
+Foreground Dice         & 0.636 & 0.686 & +0.050 \\
+IoU                     & 0.557 & 0.614 & +0.057 \\
+Precision               & 0.716 & 0.773 & +0.057 \\
+Recall                  & 0.619 & 0.659 & +0.040 \\
+BF1 (2\,px)             & 0.626 & 0.684 & +0.058 \\
+HD95 (finite mean, px)  & 47.19 & 40.35 & $-6.85$ \\
+ECE                     & 0.020 & 0.018 & $-0.002$ \\
+Count error signed      & $-1.07$ & $-1.72$ & $-0.65$ \\
+PQ (IoU $>0.5$)         & 0.480 & 0.551 & +0.071 \\
+Obj.\ Precision @0.5    & 0.602 & 0.695 & +0.093 \\
+Obj.\ Recall @0.5       & 0.561 & 0.606 & +0.045 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ranking is clear. nnU-Net is stronger on every major voxel-level metric,
+every major object-level metric, both boundary F1 measures, and finite-case
+HD95. The margin is not limited to one particular operating point: as shown in
+Figure~\ref{fig:threshold-curves}, nnU-Net remains ahead across the full
+threshold sweep from 0.30 to 0.70. Figure~\ref{fig:dice-overlay} shows the same
+story at the distribution level, with the nnU-Net Dice curve shifted toward
+higher overlap.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{../figures/dice_distribution_overlay.png}
+\caption{Foreground Dice distributions for U-Net and nnU-Net over the held-out
+  resplit test set. The nnU-Net distribution is shifted toward higher Dice,
+  although both models retain a long left tail of difficult cases.}
+\label{fig:dice-overlay}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{../figures/threshold_curves/threshold_sensitivity.png}
+\caption{Threshold sensitivity curves for the resplit test set. The ranking
+  between U-Net and nnU-Net remains stable across the operating range
+  0.30--0.70.}
+\label{fig:threshold-curves}
+\end{figure}
+
+The main caveat is that the U-Net does possess two narrow advantages. First, it
+misses fewer GT-positive slices outright (278 vs.\ 331). Second, its signed
+count error is less negative, indicating less systematic under-counting.
+However, these strengths are outweighed by the broader pattern: nnU-Net has
+fewer zero-Dice failures overall (493 vs.\ 551), more very strong predictions
+with Dice $>0.9$ (1,295 vs.\ 1,005), and far fewer false positives on empty
+slices (78 vs.\ 160). In practice, the U-Net recovers a few extra positives,
+but it does so with noisier object quality and poorer behaviour on
+background-only images.
+
+\paragraph{High-Dice corner cases.}
+The central claim of the dissertation is that high Dice does not guarantee
+biological reliability. That claim is supported for both models. Using the same
+simple rule as the earlier draft, a \emph{high-Dice corner case} is a slice
+with foreground Dice $>0.85$ but either object count error $>4$ or split rate
+$>0$. Under this definition, 289 of 1,684 high-Dice nnU-Net cases (17.2\%)
+still show elevated object-level error. The U-Net behaves almost identically:
+228 of 1,340 high-Dice slices (17.0\%) also fail this criterion. High overlap
+therefore provides false reassurance for both architectures, even though
+nnU-Net remains the better model overall.
 
 \chapter{Conclusions}
 
@@ -991,19 +1189,17 @@ is not monotonically better in dense images despite higher Dice.
 This dissertation asked whether the Dice similarity coefficient is a sufficient
 evaluation criterion for mitochondria segmentation in electron microscopy, using
 a comparison between a custom U-Net and nnU-Net on CEM-MitoLab as the
-experimental vehicle. nnU-Net has been fully evaluated on the held-out test set
-under the corrected evaluation pipeline; the U-Net comparison and the
-cross-model statistical analysis will be incorporated once U-Net training
-completes.
+experimental vehicle. Both models have now been fully evaluated on the held-out
+test set under the corrected, split-aligned evaluation pipeline.
 
-On the evidence available, the results already support a clear partial answer to
-the research question. nnU-Net achieves a mean foreground Dice of 0.686 (median
-0.854) on 3,312 test images. Yet 50.8\% of those images achieve Dice $>0.85$,
-and among them, 17.2\% still exhibit elevated object-level error under a
-conservative corner-case definition. This confirms the dissertation's central
-claim: high Dice does not guarantee biologically reliable predictions. Object
-count error, merge and split rates, and Panoptic Quality expose failures that
-are invisible to pixel-level evaluation alone.
+The results support a clear answer to the research question. nnU-Net achieves a
+mean foreground Dice of 0.686 and mean PQ of 0.551, outperforming the custom
+U-Net, which reaches 0.636 and 0.480 respectively. Yet strong Dice does not
+imply biological reliability for either model. Around 17\% of high-Dice
+predictions for both architectures still exhibit elevated object-level error
+under the corner-case definition used in Chapter~4. Object count error, merge
+and split rates, and Panoptic Quality therefore expose failure modes that
+pixel-level overlap alone does not capture.
 
 \section{Main Conclusions}
 
@@ -1022,11 +1218,15 @@ are invisible to pixel-level evaluation alone.
   the downstream scientific question depends on organelle identity, count, and
   separation rather than foreground overlap alone.
 
-  \item nnU-Net achieves strong voxel-level performance (mean foreground Dice
-  0.686, mean precision 0.773, mean PQ 0.551) while exhibiting a systematic
-  tendency to under-count objects (signed count error~$-1.72$ on average), and
-  17.2\% of its high-Dice predictions still fail a conservative object-level
-  quality criterion.
+  \item On the corrected resplit test set, nnU-Net is the stronger model
+  overall. It exceeds the custom U-Net on voxel overlap, boundary quality, and
+  object-level precision and recall, although the U-Net misses slightly fewer
+  positive slices outright and under-counts objects somewhat less severely on
+  average.
+
+  \item High-Dice corner cases are not rare curiosities. Under a simple and
+  conservative rule, 17.2\% of high-Dice nnU-Net slices and 17.0\% of
+  high-Dice U-Net slices still show elevated object-level error.
 \end{enumerate}
 
 The central methodological contribution of this dissertation is a unified,
@@ -1046,7 +1246,12 @@ ensemble, likely underestimating its full capability. The U-Net was trained with
 batch size 4 due to GPU memory constraints, compared to nnU-Net's batch size of
 12, which may impede convergence independently of architecture. The comparison
 is confined to one dataset; results should not be assumed to generalise beyond
-the conditions represented in CEM-MitoLab.
+the conditions represented in CEM-MitoLab. In addition, U-Net test inference
+had to fall back to raw TIFF images with z-score normalisation because no test
+\texttt{.b2nd} tensors were available, introducing a small mismatch between the
+U-Net's training-time and test-time input path. Finally, no type-specific or
+formal statistical significance analysis was completed for the final resplit
+evaluation, so the comparison is descriptive rather than inferential.
 
 Future work could evaluate nnU-Net with its full five-fold ensemble, compare the
 current semantic models against genuinely instance-aware alternatives, apply the

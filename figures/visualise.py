@@ -316,8 +316,32 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
         ax_idx += 1
 
         inst_rgb = instance_colourmap(inst, bg_gray=raw)
-        axes[ax_idx].imshow(inst_rgb, interpolation="nearest")
+
+        # Base 3-panel instance figure for parity with the original dissertation set.
+        fig_base, axes_base = plt.subplots(1, 3, figsize=(18, 6))
+        fig_base.patch.set_facecolor("white")
+        fig_base.subplots_adjust(left=0.01, right=0.99, top=0.82, bottom=0.02, wspace=0.05)
+        fig_base.suptitle(f"Instance Evaluation  —  {case_id}",
+                          fontsize=13, fontweight="bold", y=0.97)
+
+        axes_base[0].imshow(em, cmap="gray", vmin=0, vmax=1, interpolation="nearest")
+        axes_base[0].set_title("Raw EM", fontsize=10, fontweight="bold", pad=7)
+        axes_base[0].axis("off")
+
         n_inst = int(np.unique(inst[inst > 0]).size)
+        axes_base[1].imshow(inst_rgb, interpolation="nearest")
+        axes_base[1].set_title(f"GT Instances  ({n_inst} objects)", fontsize=10, fontweight="bold", pad=7)
+        axes_base[1].axis("off")
+
+        axes_base[2].imshow(gt_bin.astype(np.float32), cmap="gray", vmin=0, vmax=1, interpolation="nearest")
+        axes_base[2].set_title("GT Binary", fontsize=10, fontweight="bold", pad=7)
+        axes_base[2].axis("off")
+
+        out_path_base = out_dir / f"{case_id}_instances.png"
+        plt.savefig(out_path_base, dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(fig_base)
+
+        axes[ax_idx].imshow(inst_rgb, interpolation="nearest")
         axes[ax_idx].set_title(f"GT Instances  ({n_inst} objects)", fontsize=10, fontweight="bold", pad=7)
         axes[ax_idx].axis("off")
         ax_idx += 1
@@ -347,7 +371,7 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
         out_path = out_dir / f"{case_id}_{model_suffix}_instances.png"
         plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
         plt.close()
-        print(f"    {case_id}  inst={n_inst}  → {out_path.name}")
+        print(f"    {case_id}  inst={n_inst}  → {out_path_base.name}, {out_path.name}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -723,12 +747,12 @@ def fig_threshold_curves(cfg: Dict, out_root: Path, results_dir: Path,
 def _parse_unet_log(log_path: Path) -> pd.DataFrame:
     """Parse U-Net training log into a DataFrame."""
     pattern = re.compile(
-        r"Epoch\s+(\d+)\s+\|"
-        r"\s+train_loss=([\d.]+)"
-        r"\s+train_dice=([\d.]+)"
+        r"Epoch\s+(\d+)\s+complete\s+\|"
+        r"\s+train_loss=([-\d.]+)"
+        r"\s+train_(?:pseudo_)?dice=([-\d.]+)"
         r".*?\|"
         r"\s+val_loss=([^\s]+)"
-        r"\s+val_dice=([^\s]+)"
+        r"\s+val_(?:pseudo_)?dice=([^\s]+)"
     )
     rows = []
     for line in log_path.read_text().splitlines():
@@ -742,6 +766,76 @@ def _parse_unet_log(log_path: Path) -> pd.DataFrame:
             rows.append(dict(epoch=epoch, train_loss=tr_loss, train_dice=tr_dice,
                              val_loss=val_loss, val_dice=val_dice))
     return pd.DataFrame(rows)
+
+
+def fig_dice_distribution(cfg: Dict, out_root: Path, results_dir: Path,
+                          models: Optional[List[str]] = None) -> None:
+    if models is None:
+        models = ["unet", "nnunet"]
+
+    frames: Dict[str, pd.DataFrame] = {}
+    for model in models:
+        csv_path = results_dir / f"{model}_per_image.csv"
+        if csv_path.exists():
+            df = pd.read_csv(csv_path)
+            if "dice_fg" in df.columns:
+                frames[model] = df
+
+    if not frames:
+        print("  [dice_distribution] no per-image CSVs with dice_fg found - skipping")
+        return
+
+    colors = {"unet": "#2980b9", "nnunet": "#e74c3c"}
+    labels = {"unet": "U-Net", "nnunet": "nnU-Net"}
+    bins = np.linspace(0.0, 1.0, 26)
+
+    # Separate-panel histogram
+    fig, axes = plt.subplots(1, len(frames), figsize=(7 * len(frames), 4.8), sharey=True)
+    if len(frames) == 1:
+        axes = [axes]
+    fig.suptitle("Foreground Dice Distribution", fontsize=13, fontweight="bold", y=1.02)
+
+    for ax, model in zip(axes, frames.keys()):
+        dice = frames[model]["dice_fg"].dropna().to_numpy(dtype=float)
+        ax.hist(dice, bins=bins, color=colors[model], alpha=0.85, edgecolor="white", linewidth=0.5)
+        ax.axvline(np.mean(dice), color="#111111", linestyle="--", linewidth=1.4, label=f"mean={np.mean(dice):.3f}")
+        ax.axvline(np.median(dice), color="#666666", linestyle=":", linewidth=1.4, label=f"median={np.median(dice):.3f}")
+        ax.set_title(labels[model], fontsize=11, fontweight="bold")
+        ax.set_xlabel("Foreground Dice")
+        ax.set_ylabel("Number of slices")
+        ax.set_xlim(0, 1)
+        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+        ax.legend(fontsize=8)
+
+    plt.tight_layout()
+    out_path = out_root / "dice_distribution.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close()
+    print(f"  [dice_distribution] -> {out_path}")
+
+    # Overlay histogram for direct comparison
+    fig, ax = plt.subplots(figsize=(10, 5.2))
+    fig.suptitle("Foreground Dice Distribution Overlay", fontsize=13, fontweight="bold", y=1.02)
+
+    for model in frames.keys():
+        dice = frames[model]["dice_fg"].dropna().to_numpy(dtype=float)
+        ax.hist(dice, bins=bins, density=True, histtype="stepfilled",
+                alpha=0.30, color=colors[model], label=f"{labels[model]} density")
+        ax.hist(dice, bins=bins, density=True, histtype="step",
+                linewidth=1.6, color=colors[model])
+        ax.axvline(np.mean(dice), color=colors[model], linestyle="--", linewidth=1.5,
+                   label=f"{labels[model]} mean={np.mean(dice):.3f}")
+
+    ax.set_xlabel("Foreground Dice")
+    ax.set_ylabel("Density")
+    ax.set_xlim(0, 1)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+    ax.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    out_path = out_root / "dice_distribution_overlay.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close()
+    print(f"  [dice_distribution] -> {out_path}")
 
 
 def _parse_nnunet_log(log_path: Path) -> pd.DataFrame:
@@ -789,7 +883,9 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Find log files
-    unet_log_candidates = sorted(logs_dir.glob("unet_train_*.out"))
+    unet_log_candidates = sorted(logs_dir.glob("unet_b2nd_*.out"))
+    if not unet_log_candidates:
+        unet_log_candidates = sorted(logs_dir.glob("unet_train_*.out"))
     nnunet_log_candidates = sorted(logs_dir.glob("nnunet_fold0_*.out"))
 
     unet_df = nnunet_df = None
@@ -931,6 +1027,7 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 ALL_MODES = [
+    "dice_distribution",
     "training_panels",
     "eval_instances",
     "contour_overlap",
@@ -975,6 +1072,9 @@ def main() -> None:
     print(f"Modes       : {modes}")
     print(f"Models      : {active_models}")
     print()
+
+    if "dice_distribution" in modes:
+        fig_dice_distribution(cfg, out_root, results_dir, models=active_models)
 
     if "training_panels" in modes:
         for m in active_models:
