@@ -11,9 +11,8 @@ nnunet/nnUNet_results
 nnunet/nnUNet_results/
 predictions/
 samples/
-logs/
-evaluation/results/
 models/
+ug_overleaf.zip
 
 # Vendored external repository (not authored code)
 nnUNet

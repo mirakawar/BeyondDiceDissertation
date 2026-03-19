@@ -1,0 +1,162 @@
+==================================================
+Job ID   : 2223528
+Node     : damnii09
+Started  : Sat Mar 14 22:04:40 GMT 2026
+==================================================
+GPU status:
+NVIDIA GeForce RTX 2080 Ti, 11264 MiB, 10823 MiB
+
+Python: /usr/bin/python
+
+======================================================================
+  U-Net Training  (b2nd pipeline)
+  Config  : /home/s2292949/dissertation_resplit/config.json
+  Augment : True
+  Resume  : True
+======================================================================
+Split : /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/splits_final.json
+Train : 15312  (splits_final.json fold 0)
+Val   : 3247   (splits_final.json fold 0)
+Test  : 0  (preprocessed test cases available for in-script eval)
+Note  : no test .b2nd files are available; final test eval will be run via predict/evaluate scripts.
+Parameters: 17,261,890
+Device    : cuda
+Loss: CE+Dice (nnU-Net-style objective)
+
+Resumed from last_checkpoint.pt at epoch 82 (best_val_loss=-0.5780, patience=5)
+Epoch 083 complete | train_loss=-0.8757 train_pseudo_dice=0.9190 train_precision=0.9230 train_recall=0.9151 train_hd95=37.20 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 084 complete | train_loss=-0.8752 train_pseudo_dice=0.9190 train_precision=0.9225 train_recall=0.9156 train_hd95=37.27 | val_loss=-0.5782 val_pseudo_dice=0.8078 val_precision=0.8455 val_recall=0.7734 val_hd95=53.13
+  No improvement for 6 val checks (patience=50, delta=0.001)
+Epoch 085 complete | train_loss=-0.8770 train_pseudo_dice=0.9192 train_precision=0.9230 train_recall=0.9154 train_hd95=36.94 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 086 complete | train_loss=-0.8769 train_pseudo_dice=0.9196 train_precision=0.9228 train_recall=0.9164 train_hd95=36.75 | val_loss=-0.5825 val_pseudo_dice=0.8126 val_precision=0.8304 val_recall=0.7955 val_hd95=53.08
+  Saved new best model (val_loss=-0.5825)
+Epoch 087 complete | train_loss=-0.8775 train_pseudo_dice=0.9199 train_precision=0.9230 train_recall=0.9167 train_hd95=36.74 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 088 complete | train_loss=-0.8784 train_pseudo_dice=0.9206 train_precision=0.9238 train_recall=0.9174 train_hd95=36.43 | val_loss=-0.5758 val_pseudo_dice=0.8117 val_precision=0.8537 val_recall=0.7737 val_hd95=53.13
+  No improvement for 1 val checks (patience=50, delta=0.001)
+Epoch 089 complete | train_loss=-0.8792 train_pseudo_dice=0.9206 train_precision=0.9241 train_recall=0.9173 train_hd95=35.53 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 090 complete | train_loss=-0.8777 train_pseudo_dice=0.9213 train_precision=0.9244 train_recall=0.9181 train_hd95=36.09 | val_loss=-0.5799 val_pseudo_dice=0.8080 val_precision=0.8519 val_recall=0.7684 val_hd95=52.24
+  No improvement for 2 val checks (patience=50, delta=0.001)
+Epoch 091 complete | train_loss=-0.8792 train_pseudo_dice=0.9214 train_precision=0.9251 train_recall=0.9177 train_hd95=36.02 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 092 complete | train_loss=-0.8787 train_pseudo_dice=0.9214 train_precision=0.9251 train_recall=0.9178 train_hd95=35.60 | val_loss=-0.5762 val_pseudo_dice=0.8168 val_precision=0.8259 val_recall=0.8079 val_hd95=53.98
+  No improvement for 3 val checks (patience=50, delta=0.001)
+Epoch 093 complete | train_loss=-0.8797 train_pseudo_dice=0.9216 train_precision=0.9247 train_recall=0.9185 train_hd95=36.10 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 094 complete | train_loss=-0.8787 train_pseudo_dice=0.9218 train_precision=0.9250 train_recall=0.9186 train_hd95=35.53 | val_loss=-0.5789 val_pseudo_dice=0.8105 val_precision=0.8442 val_recall=0.7793 val_hd95=53.07
+  No improvement for 4 val checks (patience=50, delta=0.001)
+Epoch 095 complete | train_loss=-0.8798 train_pseudo_dice=0.9227 train_precision=0.9255 train_recall=0.9199 train_hd95=35.09 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 096 complete | train_loss=-0.8814 train_pseudo_dice=0.9235 train_precision=0.9270 train_recall=0.9201 train_hd95=34.26 | val_loss=-0.5803 val_pseudo_dice=0.8100 val_precision=0.8390 val_recall=0.7830 val_hd95=52.83
+  No improvement for 5 val checks (patience=50, delta=0.001)
+Epoch 097 complete | train_loss=-0.8814 train_pseudo_dice=0.9240 train_precision=0.9271 train_recall=0.9209 train_hd95=34.13 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 098 complete | train_loss=-0.8829 train_pseudo_dice=0.9241 train_precision=0.9271 train_recall=0.9211 train_hd95=34.35 | val_loss=-0.5801 val_pseudo_dice=0.8034 val_precision=0.8465 val_recall=0.7645 val_hd95=52.24
+  No improvement for 6 val checks (patience=50, delta=0.001)
+Epoch 099 complete | train_loss=-0.8838 train_pseudo_dice=0.9244 train_precision=0.9275 train_recall=0.9212 train_hd95=33.81 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 100 complete | train_loss=-0.8863 train_pseudo_dice=0.9248 train_precision=0.9281 train_recall=0.9216 train_hd95=33.54 | val_loss=-0.5767 val_pseudo_dice=0.8002 val_precision=0.8507 val_recall=0.7553 val_hd95=53.66
+  No improvement for 7 val checks (patience=50, delta=0.001)
+Epoch 101 complete | train_loss=-0.8850 train_pseudo_dice=0.9246 train_precision=0.9277 train_recall=0.9215 train_hd95=34.12 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 102 complete | train_loss=-0.8859 train_pseudo_dice=0.9248 train_precision=0.9276 train_recall=0.9220 train_hd95=33.34 | val_loss=-0.5795 val_pseudo_dice=0.8039 val_precision=0.8471 val_recall=0.7649 val_hd95=53.48
+  No improvement for 8 val checks (patience=50, delta=0.001)
+Epoch 103 complete | train_loss=-0.8869 train_pseudo_dice=0.9256 train_precision=0.9287 train_recall=0.9226 train_hd95=32.75 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 104 complete | train_loss=-0.8858 train_pseudo_dice=0.9256 train_precision=0.9288 train_recall=0.9225 train_hd95=33.23 | val_loss=-0.5789 val_pseudo_dice=0.8085 val_precision=0.8433 val_recall=0.7765 val_hd95=52.20
+  No improvement for 9 val checks (patience=50, delta=0.001)
+Epoch 105 complete | train_loss=-0.8853 train_pseudo_dice=0.9259 train_precision=0.9289 train_recall=0.9229 train_hd95=32.37 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 106 complete | train_loss=-0.8860 train_pseudo_dice=0.9260 train_precision=0.9290 train_recall=0.9230 train_hd95=32.99 | val_loss=-0.5799 val_pseudo_dice=0.8075 val_precision=0.8418 val_recall=0.7759 val_hd95=53.35
+  No improvement for 10 val checks (patience=50, delta=0.001)
+Epoch 107 complete | train_loss=-0.8851 train_pseudo_dice=0.9261 train_precision=0.9290 train_recall=0.9232 train_hd95=32.76 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 108 complete | train_loss=-0.8867 train_pseudo_dice=0.9263 train_precision=0.9295 train_recall=0.9232 train_hd95=32.47 | val_loss=-0.5794 val_pseudo_dice=0.8071 val_precision=0.8450 val_recall=0.7725 val_hd95=52.75
+  No improvement for 11 val checks (patience=50, delta=0.001)
+Epoch 109 complete | train_loss=-0.8864 train_pseudo_dice=0.9261 train_precision=0.9291 train_recall=0.9232 train_hd95=31.84 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 110 complete | train_loss=-0.8869 train_pseudo_dice=0.9263 train_precision=0.9291 train_recall=0.9235 train_hd95=32.89 | val_loss=-0.5796 val_pseudo_dice=0.8104 val_precision=0.8403 val_recall=0.7825 val_hd95=53.32
+  No improvement for 12 val checks (patience=50, delta=0.001)
+Epoch 111 complete | train_loss=-0.8890 train_pseudo_dice=0.9272 train_precision=0.9303 train_recall=0.9240 train_hd95=32.36 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 112 complete | train_loss=-0.8879 train_pseudo_dice=0.9272 train_precision=0.9306 train_recall=0.9238 train_hd95=32.19 | val_loss=-0.5826 val_pseudo_dice=0.8081 val_precision=0.8438 val_recall=0.7752 val_hd95=53.21
+  No improvement for 13 val checks (patience=50, delta=0.001)
+Epoch 113 complete | train_loss=-0.8873 train_pseudo_dice=0.9266 train_precision=0.9299 train_recall=0.9233 train_hd95=32.40 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 114 complete | train_loss=-0.8882 train_pseudo_dice=0.9269 train_precision=0.9300 train_recall=0.9239 train_hd95=31.99 | val_loss=-0.5798 val_pseudo_dice=0.8055 val_precision=0.8439 val_recall=0.7705 val_hd95=53.26
+  No improvement for 14 val checks (patience=50, delta=0.001)
+Epoch 115 complete | train_loss=-0.8882 train_pseudo_dice=0.9271 train_precision=0.9304 train_recall=0.9238 train_hd95=31.74 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 116 complete | train_loss=-0.8870 train_pseudo_dice=0.9270 train_precision=0.9301 train_recall=0.9239 train_hd95=31.96 | val_loss=-0.5811 val_pseudo_dice=0.8061 val_precision=0.8433 val_recall=0.7721 val_hd95=53.37
+  No improvement for 15 val checks (patience=50, delta=0.001)
+Epoch 117 complete | train_loss=-0.8880 train_pseudo_dice=0.9274 train_precision=0.9302 train_recall=0.9246 train_hd95=31.90 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 118 complete | train_loss=-0.8872 train_pseudo_dice=0.9272 train_precision=0.9303 train_recall=0.9242 train_hd95=31.76 | val_loss=-0.5791 val_pseudo_dice=0.8061 val_precision=0.8380 val_recall=0.7765 val_hd95=53.56
+  No improvement for 16 val checks (patience=50, delta=0.001)
+Epoch 119 complete | train_loss=-0.8879 train_pseudo_dice=0.9272 train_precision=0.9303 train_recall=0.9242 train_hd95=31.56 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 120 complete | train_loss=-0.8869 train_pseudo_dice=0.9270 train_precision=0.9300 train_recall=0.9240 train_hd95=31.89 | val_loss=-0.5811 val_pseudo_dice=0.8098 val_precision=0.8393 val_recall=0.7822 val_hd95=53.58
+  No improvement for 17 val checks (patience=50, delta=0.001)
+Epoch 121 complete | train_loss=-0.8890 train_pseudo_dice=0.9276 train_precision=0.9304 train_recall=0.9248 train_hd95=31.70 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 122 complete | train_loss=-0.8883 train_pseudo_dice=0.9278 train_precision=0.9309 train_recall=0.9247 train_hd95=31.84 | val_loss=-0.5797 val_pseudo_dice=0.8052 val_precision=0.8432 val_recall=0.7704 val_hd95=53.64
+  No improvement for 18 val checks (patience=50, delta=0.001)
+Epoch 123 complete | train_loss=-0.8883 train_pseudo_dice=0.9275 train_precision=0.9307 train_recall=0.9244 train_hd95=31.59 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 124 complete | train_loss=-0.8892 train_pseudo_dice=0.9281 train_precision=0.9312 train_recall=0.9252 train_hd95=31.68 | val_loss=-0.5813 val_pseudo_dice=0.8094 val_precision=0.8421 val_recall=0.7790 val_hd95=53.19
+  No improvement for 19 val checks (patience=50, delta=0.001)
+Epoch 125 complete | train_loss=-0.8899 train_pseudo_dice=0.9278 train_precision=0.9308 train_recall=0.9248 train_hd95=31.73 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 126 complete | train_loss=-0.8892 train_pseudo_dice=0.9280 train_precision=0.9307 train_recall=0.9253 train_hd95=31.33 | val_loss=-0.5800 val_pseudo_dice=0.8090 val_precision=0.8400 val_recall=0.7801 val_hd95=53.60
+  No improvement for 20 val checks (patience=50, delta=0.001)
+Epoch 127 complete | train_loss=-0.8883 train_pseudo_dice=0.9282 train_precision=0.9314 train_recall=0.9249 train_hd95=31.44 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 128 complete | train_loss=-0.8894 train_pseudo_dice=0.9278 train_precision=0.9308 train_recall=0.9248 train_hd95=31.12 | val_loss=-0.5799 val_pseudo_dice=0.8094 val_precision=0.8409 val_recall=0.7801 val_hd95=53.27
+  No improvement for 21 val checks (patience=50, delta=0.001)
+Epoch 129 complete | train_loss=-0.8884 train_pseudo_dice=0.9278 train_precision=0.9306 train_recall=0.9251 train_hd95=31.53 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 130 complete | train_loss=-0.8900 train_pseudo_dice=0.9285 train_precision=0.9317 train_recall=0.9253 train_hd95=31.57 | val_loss=-0.5795 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7783 val_hd95=53.33
+  No improvement for 22 val checks (patience=50, delta=0.001)
+Epoch 131 complete | train_loss=-0.8903 train_pseudo_dice=0.9283 train_precision=0.9309 train_recall=0.9256 train_hd95=31.46 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 132 complete | train_loss=-0.8884 train_pseudo_dice=0.9281 train_precision=0.9308 train_recall=0.9254 train_hd95=31.18 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8414 val_recall=0.7780 val_hd95=53.40
+  No improvement for 23 val checks (patience=50, delta=0.001)
+Epoch 133 complete | train_loss=-0.8885 train_pseudo_dice=0.9283 train_precision=0.9312 train_recall=0.9254 train_hd95=31.33 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 134 complete | train_loss=-0.8887 train_pseudo_dice=0.9280 train_precision=0.9309 train_recall=0.9251 train_hd95=31.36 | val_loss=-0.5790 val_pseudo_dice=0.8078 val_precision=0.8406 val_recall=0.7774 val_hd95=53.70
+  No improvement for 24 val checks (patience=50, delta=0.001)
+Epoch 135 complete | train_loss=-0.8900 train_pseudo_dice=0.9281 train_precision=0.9309 train_recall=0.9253 train_hd95=30.95 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 136 complete | train_loss=-0.8902 train_pseudo_dice=0.9280 train_precision=0.9314 train_recall=0.9247 train_hd95=30.98 | val_loss=-0.5798 val_pseudo_dice=0.8089 val_precision=0.8420 val_recall=0.7784 val_hd95=53.40
+  No improvement for 25 val checks (patience=50, delta=0.001)
+Epoch 137 complete | train_loss=-0.8897 train_pseudo_dice=0.9283 train_precision=0.9314 train_recall=0.9252 train_hd95=31.00 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 138 complete | train_loss=-0.8908 train_pseudo_dice=0.9282 train_precision=0.9312 train_recall=0.9251 train_hd95=30.74 | val_loss=-0.5793 val_pseudo_dice=0.8086 val_precision=0.8421 val_recall=0.7776 val_hd95=53.74
+  No improvement for 26 val checks (patience=50, delta=0.001)
+Epoch 139 complete | train_loss=-0.8905 train_pseudo_dice=0.9281 train_precision=0.9314 train_recall=0.9248 train_hd95=31.24 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 140 complete | train_loss=-0.8910 train_pseudo_dice=0.9285 train_precision=0.9311 train_recall=0.9258 train_hd95=31.20 | val_loss=-0.5794 val_pseudo_dice=0.8088 val_precision=0.8413 val_recall=0.7787 val_hd95=53.75
+  No improvement for 27 val checks (patience=50, delta=0.001)
+Epoch 141 complete | train_loss=-0.8894 train_pseudo_dice=0.9280 train_precision=0.9309 train_recall=0.9252 train_hd95=31.06 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 142 complete | train_loss=-0.8910 train_pseudo_dice=0.9285 train_precision=0.9312 train_recall=0.9257 train_hd95=31.22 | val_loss=-0.5796 val_pseudo_dice=0.8094 val_precision=0.8404 val_recall=0.7806 val_hd95=53.32
+  No improvement for 28 val checks (patience=50, delta=0.001)
+Epoch 143 complete | train_loss=-0.8897 train_pseudo_dice=0.9280 train_precision=0.9309 train_recall=0.9250 train_hd95=31.08 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 144 complete | train_loss=-0.8888 train_pseudo_dice=0.9281 train_precision=0.9312 train_recall=0.9250 train_hd95=31.08 | val_loss=-0.5796 val_pseudo_dice=0.8092 val_precision=0.8407 val_recall=0.7800 val_hd95=53.27
+  No improvement for 29 val checks (patience=50, delta=0.001)
+Epoch 145 complete | train_loss=-0.8904 train_pseudo_dice=0.9287 train_precision=0.9316 train_recall=0.9259 train_hd95=31.09 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 146 complete | train_loss=-0.8892 train_pseudo_dice=0.9284 train_precision=0.9315 train_recall=0.9253 train_hd95=30.83 | val_loss=-0.5795 val_pseudo_dice=0.8087 val_precision=0.8410 val_recall=0.7789 val_hd95=53.40
+  No improvement for 30 val checks (patience=50, delta=0.001)
+Epoch 147 complete | train_loss=-0.8916 train_pseudo_dice=0.9287 train_precision=0.9318 train_recall=0.9257 train_hd95=30.84 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 148 complete | train_loss=-0.8914 train_pseudo_dice=0.9289 train_precision=0.9320 train_recall=0.9258 train_hd95=30.78 | val_loss=-0.5795 val_pseudo_dice=0.8084 val_precision=0.8416 val_recall=0.7778 val_hd95=53.49
+  No improvement for 31 val checks (patience=50, delta=0.001)
+Epoch 149 complete | train_loss=-0.8893 train_pseudo_dice=0.9284 train_precision=0.9314 train_recall=0.9255 train_hd95=30.82 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 150 complete | train_loss=-0.8907 train_pseudo_dice=0.9281 train_precision=0.9311 train_recall=0.9251 train_hd95=31.20 | val_loss=-0.5795 val_pseudo_dice=0.8086 val_precision=0.8411 val_recall=0.7785 val_hd95=53.30
+  No improvement for 32 val checks (patience=50, delta=0.001)
+Epoch 151 complete | train_loss=-0.8904 train_pseudo_dice=0.9286 train_precision=0.9316 train_recall=0.9255 train_hd95=30.38 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 152 complete | train_loss=-0.8903 train_pseudo_dice=0.9287 train_precision=0.9318 train_recall=0.9256 train_hd95=30.21 | val_loss=-0.5794 val_pseudo_dice=0.8086 val_precision=0.8410 val_recall=0.7785 val_hd95=53.32
+  No improvement for 33 val checks (patience=50, delta=0.001)
+Epoch 153 complete | train_loss=-0.8890 train_pseudo_dice=0.9284 train_precision=0.9312 train_recall=0.9255 train_hd95=30.77 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 154 complete | train_loss=-0.8885 train_pseudo_dice=0.9288 train_precision=0.9317 train_recall=0.9260 train_hd95=30.84 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8414 val_recall=0.7781 val_hd95=53.15
+  No improvement for 34 val checks (patience=50, delta=0.001)
+Epoch 155 complete | train_loss=-0.8893 train_pseudo_dice=0.9287 train_precision=0.9315 train_recall=0.9259 train_hd95=31.09 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 156 complete | train_loss=-0.8910 train_pseudo_dice=0.9289 train_precision=0.9319 train_recall=0.9260 train_hd95=30.77 | val_loss=-0.5793 val_pseudo_dice=0.8084 val_precision=0.8415 val_recall=0.7777 val_hd95=53.20
+  No improvement for 35 val checks (patience=50, delta=0.001)
+Epoch 157 complete | train_loss=-0.8890 train_pseudo_dice=0.9286 train_precision=0.9318 train_recall=0.9255 train_hd95=31.13 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 158 complete | train_loss=-0.8898 train_pseudo_dice=0.9284 train_precision=0.9315 train_recall=0.9253 train_hd95=30.86 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8412 val_recall=0.7783 val_hd95=53.15
+  No improvement for 36 val checks (patience=50, delta=0.001)
+Epoch 159 complete | train_loss=-0.8908 train_pseudo_dice=0.9288 train_precision=0.9317 train_recall=0.9258 train_hd95=30.65 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 160 complete | train_loss=-0.8921 train_pseudo_dice=0.9291 train_precision=0.9323 train_recall=0.9260 train_hd95=30.61 | val_loss=-0.5792 val_pseudo_dice=0.8083 val_precision=0.8416 val_recall=0.7776 val_hd95=53.10
+  No improvement for 37 val checks (patience=50, delta=0.001)
+Epoch 161 complete | train_loss=-0.8912 train_pseudo_dice=0.9290 train_precision=0.9319 train_recall=0.9261 train_hd95=30.53 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 162 complete | train_loss=-0.8898 train_pseudo_dice=0.9287 train_precision=0.9318 train_recall=0.9256 train_hd95=30.93 | val_loss=-0.5792 val_pseudo_dice=0.8083 val_precision=0.8418 val_recall=0.7773 val_hd95=53.10
+  No improvement for 38 val checks (patience=50, delta=0.001)
+Epoch 163 complete | train_loss=-0.8895 train_pseudo_dice=0.9285 train_precision=0.9317 train_recall=0.9254 train_hd95=31.27 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 164 complete | train_loss=-0.8903 train_pseudo_dice=0.9286 train_precision=0.9316 train_recall=0.9258 train_hd95=30.96 | val_loss=-0.5791 val_pseudo_dice=0.8083 val_precision=0.8416 val_recall=0.7776 val_hd95=53.15
+  No improvement for 39 val checks (patience=50, delta=0.001)
+Epoch 165 complete | train_loss=-0.8893 train_pseudo_dice=0.9279 train_precision=0.9309 train_recall=0.9248 train_hd95=31.21 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 166 complete | train_loss=-0.8877 train_pseudo_dice=0.9277 train_precision=0.9309 train_recall=0.9246 train_hd95=31.66 | val_loss=-0.5792 val_pseudo_dice=0.8084 val_precision=0.8411 val_recall=0.7782 val_hd95=53.12
+  No improvement for 40 val checks (patience=50, delta=0.001)
+Epoch 167 complete | train_loss=-0.8895 train_pseudo_dice=0.9279 train_precision=0.9309 train_recall=0.9250 train_hd95=31.51 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 168 complete | train_loss=-0.8880 train_pseudo_dice=0.9278 train_precision=0.9308 train_recall=0.9249 train_hd95=31.77 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7784 val_hd95=53.28
+  No improvement for 41 val checks (patience=50, delta=0.001)
+Epoch 169 complete | train_loss=-0.8864 train_pseudo_dice=0.9277 train_precision=0.9306 train_recall=0.9247 train_hd95=30.94 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 170 complete | train_loss=-0.8875 train_pseudo_dice=0.9276 train_precision=0.9307 train_recall=0.9246 train_hd95=31.56 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7784 val_hd95=53.34
+  No improvement for 42 val checks (patience=50, delta=0.001)
+Epoch 171 complete | train_loss=-0.8891 train_pseudo_dice=0.9275 train_precision=0.9306 train_recall=0.9244 train_hd95=31.63 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 172 complete | train_loss=-0.8891 train_pseudo_dice=0.9278 train_precision=0.9307 train_recall=0.9249 train_hd95=31.35 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7783 val_hd95=53.37
+  No improvement for 43 val checks (patience=50, delta=0.001)
+Epoch 173 complete | train_loss=-0.8891 train_pseudo_dice=0.9281 train_precision=0.9310 train_recall=0.9252 train_hd95=31.12 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----

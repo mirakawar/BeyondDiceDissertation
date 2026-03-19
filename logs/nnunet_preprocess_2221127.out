@@ -1,0 +1,67 @@
+================================================================
+  nnU-Net Preprocessing
+  Job ID  : 2221127
+  Node    : saxa
+  Started : Thu Mar 12 15:47:00 GMT 2026
+  CPUs    : 2
+================================================================
+
+Fingerprint extraction...
+Dataset001_Mitochondria
+Using <class 'nnunetv2.imageio.nibabel_reader_writer.NibabelIOWithReorient'> reader/writer
+
+####################
+verify_dataset_integrity Done. 
+If you didn't see any error messages then your dataset is most likely OK!
+####################
+
+Using <class 'nnunetv2.imageio.nibabel_reader_writer.NibabelIOWithReorient'> reader/writer
+Experiment planning...
+
+############################
+INFO: You are using the old nnU-Net default planner. We have updated our recommendations. Please consider using those instead! Read more here: https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/resenc_presets.md
+############################
+
+2D U-Net configuration:
+{'data_identifier': 'nnUNetPlans_2d', 'preprocessor_name': 'DefaultPreprocessor', 'batch_size': 12, 'patch_size': (512, 512), 'median_image_size_in_voxels': array([512., 512.]), 'spacing': array([1., 1.]), 'normalization_schemes': ['ZScoreNormalization'], 'use_mask_for_norm': [False], 'resampling_fn_data': 'resample_data_or_seg_to_shape', 'resampling_fn_seg': 'resample_data_or_seg_to_shape', 'resampling_fn_data_kwargs': {'is_seg': False, 'order': 3, 'order_z': 0, 'force_separate_z': None}, 'resampling_fn_seg_kwargs': {'is_seg': True, 'order': 1, 'order_z': 0, 'force_separate_z': None}, 'resampling_fn_probabilities': 'resample_data_or_seg_to_shape', 'resampling_fn_probabilities_kwargs': {'is_seg': False, 'order': 1, 'order_z': 0, 'force_separate_z': None}, 'architecture': {'network_class_name': 'dynamic_network_architectures.architectures.unet.PlainConvUNet', 'arch_kwargs': {'n_stages': 8, 'features_per_stage': (32, 64, 128, 256, 512, 512, 512, 512), 'conv_op': 'torch.nn.modules.conv.Conv2d', 'kernel_sizes': ((3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (3, 3)), 'strides': ((1, 1), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)), 'n_conv_per_stage': (2, 2, 2, 2, 2, 2, 2, 2), 'n_conv_per_stage_decoder': (2, 2, 2, 2, 2, 2, 2), 'conv_bias': True, 'norm_op': 'torch.nn.modules.instancenorm.InstanceNorm2d', 'norm_op_kwargs': {'eps': 1e-05, 'affine': True}, 'dropout_op': None, 'dropout_op_kwargs': None, 'nonlin': 'torch.nn.LeakyReLU', 'nonlin_kwargs': {'inplace': True}}, '_kw_requires_import': ('conv_op', 'norm_op', 'dropout_op', 'nonlin')}, 'batch_dice': True}
+
+Using <class 'nnunetv2.imageio.nibabel_reader_writer.NibabelIOWithReorient'> reader/writer
+Plans were saved to /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/nnUNetPlans.json
+Preprocessing...
+Preprocessing dataset Dataset001_Mitochondria
+Configuration: 2d...
+Preprocessing the following configuration: 2d
+{'data_identifier': 'nnUNetPlans_2d', 'preprocessor_name': 'DefaultPreprocessor', 'batch_size': 12, 'patch_size': [512, 512], 'median_image_size_in_voxels': [512.0, 512.0], 'spacing': [1.0, 1.0], 'normalization_schemes': ['ZScoreNormalization'], 'use_mask_for_norm': [False], 'resampling_fn_data': 'resample_data_or_seg_to_shape', 'resampling_fn_seg': 'resample_data_or_seg_to_shape', 'resampling_fn_data_kwargs': {'is_seg': False, 'order': 3, 'order_z': 0, 'force_separate_z': None}, 'resampling_fn_seg_kwargs': {'is_seg': True, 'order': 1, 'order_z': 0, 'force_separate_z': None}, 'resampling_fn_probabilities': 'resample_data_or_seg_to_shape', 'resampling_fn_probabilities_kwargs': {'is_seg': False, 'order': 1, 'order_z': 0, 'force_separate_z': None}, 'architecture': {'network_class_name': 'dynamic_network_architectures.architectures.unet.PlainConvUNet', 'arch_kwargs': {'n_stages': 8, 'features_per_stage': [32, 64, 128, 256, 512, 512, 512, 512], 'conv_op': 'torch.nn.modules.conv.Conv2d', 'kernel_sizes': [[3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]], 'strides': [[1, 1], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]], 'n_conv_per_stage': [2, 2, 2, 2, 2, 2, 2, 2], 'n_conv_per_stage_decoder': [2, 2, 2, 2, 2, 2, 2], 'conv_bias': True, 'norm_op': 'torch.nn.modules.instancenorm.InstanceNorm2d', 'norm_op_kwargs': {'eps': 1e-05, 'affine': True}, 'dropout_op': None, 'dropout_op_kwargs': None, 'nonlin': 'torch.nn.LeakyReLU', 'nonlin_kwargs': {'inplace': True}}, '_kw_requires_import': ['conv_op', 'norm_op', 'dropout_op', 'nonlin']}, 'batch_dice': True}
+Configuration: 3d_fullres...
+INFO: Configuration 3d_fullres not found in plans file nnUNetPlans.json of dataset Dataset001_Mitochondria. Skipping.
+Configuration: 3d_lowres...
+INFO: Configuration 3d_lowres not found in plans file nnUNetPlans.json of dataset Dataset001_Mitochondria. Skipping.
+✓ splits_final.pkl copied → /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/splits_final.pkl
+
+✓ nnUNetPlans.json loaded
+✓ Pixel spacing from fingerprint: [1.0, 1.0, 1.0]
+
+✓ config.json saved → /home/s2292949/dissertation_resplit/config.json
+
+── Extracted from nnUNetPlans.json ──────────────────────────
+  patch_size : [512, 512]
+  batch_size : 12
+  spacing    : [1.0, 1.0, 1.0]
+
+── U-Net configuration ──────────────────────────────────────
+  patch_size    : [512, 512]  (matched to nnU-Net)
+  batch_size    : 12  (matched to nnU-Net)
+  augmentation  : False  (supervisor: keep simple)
+  max_epochs    : 1000
+  early_stopping: patience=50, delta=0.001
+
+── Shared evaluation settings ───────────────────────────────
+  HD95 units           : pixels  (supervisor confirmed)
+  min_object_size_px   : 10
+  boundary_tolerances  : [2px, 5px]
+  thresholds           : [0.3, 0.4, 0.5, 0.6, 0.7]
+  object IoU thresholds: [0.3, 0.5, 0.7, 0.9]
+
+================================================================
+  Preprocessing complete : Thu Mar 12 16:46:22 GMT 2026
+================================================================

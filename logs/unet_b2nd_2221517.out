@@ -1,0 +1,25 @@
+==================================================
+Job ID   : 2221517
+Node     : damnii09
+Started  : Thu Mar 12 19:37:02 GMT 2026
+==================================================
+GPU status:
+NVIDIA GeForce RTX 2080 Ti, 11264 MiB, 10823 MiB
+
+Python: /usr/bin/python
+
+======================================================================
+  U-Net Training  (b2nd pipeline)
+  Config  : /home/s2292949/dissertation_resplit/config.json
+  Augment : True
+  Resume  : False
+======================================================================
+Split : /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/splits_final.json
+Train : 15312  (splits_final.json fold 0)
+Val   : 3247   (splits_final.json fold 0)
+Test  : 0  (preprocessed test cases available for in-script eval)
+Note  : no test .b2nd files are available; final test eval will be run via predict/evaluate scripts.
+Parameters: 17,261,825
+Device    : cuda
+Pos weight: 17.128108 (computed from active train split)
+Loss: BCE+Dice (pos_weight=17.128108)

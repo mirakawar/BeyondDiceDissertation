@@ -1,0 +1,44 @@
+Input source summary for split 'test': b2nd=0, raw=3312, mode=auto
+Warning: 3312 test cases are using raw TIFF fallback because no preprocessed .b2nd file exists for them.
+========================================================================
+U-Net Inference
+  config      : /home/s2292949/dissertation_resplit/config.json
+  checkpoint  : /home/s2292949/dissertation_resplit/models/unet/checkpoints/best_model.pt
+  split       : test (3312 cases)
+  input src   : auto
+  batch size  : 8
+  threshold   : 0.5
+  normalize   : zscore
+  clip pct    : none
+  device      : cuda
+  n_classes   : 2
+  ckpt epoch  : 86
+  binary out  : /home/s2292949/dissertation_resplit/predictions/unet/binary
+  probs out   : /home/s2292949/dissertation_resplit/predictions/unet/probs
+========================================================================
+
+Inference complete.
+  saved   : 3312
+  skipped : 0
+  total   : 3312
+========================================================================
+Evaluation
+  model         : unet
+  binary dir    : /home/s2292949/dissertation_resplit/predictions/unet/binary
+  probs dir     : /home/s2292949/dissertation_resplit/predictions/unet/probs
+  instances dir : /home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs
+  cases         : 3312
+  thresholds    : [0.3, 0.4, 0.5, 0.6, 0.7]
+  min obj size  : 10 px
+========================================================================
+
+Evaluation complete.
+  per-image : /home/s2292949/dissertation_resplit/evaluation/results/unet_per_image.csv
+  aggregate : /home/s2292949/dissertation_resplit/evaluation/results/unet_aggregate.csv
+  gt>0 agg  : /home/s2292949/dissertation_resplit/evaluation/results/unet_aggregate_gt_positive.csv
+  gt=0 agg  : /home/s2292949/dissertation_resplit/evaluation/results/unet_aggregate_gt_empty.csv
+  summary   : /home/s2292949/dissertation_resplit/evaluation/results/unet_summary.json
+  evaluated : 3312 / 3312
+  missing binary : 0
+  missing probs  : 0
+  failed cases   : 0

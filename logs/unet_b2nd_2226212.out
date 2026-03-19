@@ -1,0 +1,57 @@
+==================================================
+Job ID   : 2226212
+Node     : saxa
+Started  : Mon Mar 16 23:53:31 GMT 2026
+==================================================
+GPU status:
+NVIDIA H200, 143771 MiB, 127209 MiB
+
+Python: /usr/bin/python
+
+======================================================================
+  U-Net Training  (b2nd pipeline)
+  Config  : /home/s2292949/dissertation_resplit/config.json
+  Augment : True
+  Resume  : True
+======================================================================
+Split : /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/splits_final.json
+Train : 15312  (splits_final.json fold 0)
+Val   : 3247   (splits_final.json fold 0)
+Test  : 0  (preprocessed test cases available for in-script eval)
+Note  : no test .b2nd files are available; final test eval will be run via predict/evaluate scripts.
+Parameters: 17,261,890
+Device    : cuda
+Loss: CE+Dice (nnU-Net-style objective)
+
+Resumed from last_checkpoint.pt at epoch 173 (best_val_loss=-0.5825, patience=43)
+Epoch 174 complete | train_loss=-0.8905 train_pseudo_dice=0.9288 train_precision=0.9320 train_recall=0.9257 train_hd95=30.37 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8411 val_recall=0.7783 val_hd95=53.31
+  No improvement for 44 val checks (patience=50, delta=0.001)
+Epoch 175 complete | train_loss=-0.8878 train_pseudo_dice=0.9278 train_precision=0.9309 train_recall=0.9248 train_hd95=31.34 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 176 complete | train_loss=-0.8915 train_pseudo_dice=0.9282 train_precision=0.9312 train_recall=0.9252 train_hd95=31.54 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7785 val_hd95=53.31
+  No improvement for 45 val checks (patience=50, delta=0.001)
+Epoch 177 complete | train_loss=-0.8907 train_pseudo_dice=0.9284 train_precision=0.9313 train_recall=0.9256 train_hd95=30.83 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 178 complete | train_loss=-0.8910 train_pseudo_dice=0.9286 train_precision=0.9316 train_recall=0.9256 train_hd95=30.86 | val_loss=-0.5793 val_pseudo_dice=0.8086 val_precision=0.8410 val_recall=0.7785 val_hd95=53.29
+  No improvement for 46 val checks (patience=50, delta=0.001)
+Epoch 179 complete | train_loss=-0.8907 train_pseudo_dice=0.9285 train_precision=0.9314 train_recall=0.9257 train_hd95=30.46 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 180 complete | train_loss=-0.8922 train_pseudo_dice=0.9291 train_precision=0.9320 train_recall=0.9262 train_hd95=30.22 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8411 val_recall=0.7784 val_hd95=53.28
+  No improvement for 47 val checks (patience=50, delta=0.001)
+Epoch 181 complete | train_loss=-0.8900 train_pseudo_dice=0.9291 train_precision=0.9320 train_recall=0.9261 train_hd95=30.61 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 182 complete | train_loss=-0.8906 train_pseudo_dice=0.9290 train_precision=0.9319 train_recall=0.9260 train_hd95=30.68 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8410 val_recall=0.7785 val_hd95=53.29
+  No improvement for 48 val checks (patience=50, delta=0.001)
+Epoch 183 complete | train_loss=-0.8902 train_pseudo_dice=0.9290 train_precision=0.9320 train_recall=0.9261 train_hd95=30.67 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 184 complete | train_loss=-0.8911 train_pseudo_dice=0.9290 train_precision=0.9318 train_recall=0.9262 train_hd95=31.09 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8411 val_recall=0.7784 val_hd95=53.27
+  No improvement for 49 val checks (patience=50, delta=0.001)
+Epoch 185 complete | train_loss=-0.8897 train_pseudo_dice=0.9287 train_precision=0.9314 train_recall=0.9259 train_hd95=30.58 | val_loss=---- val_pseudo_dice=---- val_precision=---- val_recall=---- val_hd95=----
+Epoch 186 complete | train_loss=-0.8886 train_pseudo_dice=0.9281 train_precision=0.9309 train_recall=0.9254 train_hd95=30.94 | val_loss=-0.5793 val_pseudo_dice=0.8085 val_precision=0.8411 val_recall=0.7784 val_hd95=53.29
+  No improvement for 50 val checks (patience=50, delta=0.001)
+
+Early stopping at epoch 186. Best val_loss=-0.5825
+Loaded checkpoint from epoch 86 (best_model.pt).
+
+Skipped in-script test evaluation because no test .b2nd files are available.
+Run day4/predict_unet.py followed by day5/evaluate.py for held-out test results.
+
+
+==================================================
+  Training complete : Tue Mar 17 05:34:02 GMT 2026
+==================================================

@@ -1,0 +1,40 @@
+================================================================
+  nnU-Net Fold 0 Training
+  Job ID  : 2221250
+  Node    : damnii07
+  Started : Thu Mar 12 17:31:26 GMT 2026
+================================================================
+
+Checking prerequisites...
+  ✓ nnUNetPlans.json found
+  ✓ splits_final.pkl found
+
+GPU status:
+NVIDIA GeForce RTX 2080 Ti, 11264 MiB, 10823 MiB
+
+================================================================
+  Starting nnUNetv2_train
+  Dataset  : 001 (Dataset001_Mitochondria)
+  Config   : 2d
+  Fold     : 0
+================================================================
+
+
+############################
+INFO: You are using the old nnU-Net default plans. We have updated our recommendations. Please consider using those instead! Read more here: https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/resenc_presets.md
+############################
+
+Using device: cuda:0
+
+#######################################################################
+Please cite the following paper when using nnU-Net:
+Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
+#######################################################################
+
+WARNING: Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training...
+2026-03-12 17:33:19.494161: Using torch.compile...
+2026-03-12 17:33:36.304327: do_dummy_2d_data_aug: False
+2026-03-12 17:33:36.385098: Creating new 5-fold cross-validation split...
+2026-03-12 17:33:36.758195: Desired fold for training: 0
+2026-03-12 17:33:36.760333: This split has 14847 training and 3712 validation cases.
+using pin_memory on device 0

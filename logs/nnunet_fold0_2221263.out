@@ -1,0 +1,21 @@
+================================================================
+  nnU-Net Fold 0 Training
+  Job ID  : 2221263
+  Node    : damnii07
+  Started : Thu 12 Mar 17:31:26 GMT 2026
+================================================================
+
+Checking prerequisites...
+  ✓ nnUNetPlans.json found
+  ✓ splits_final.pkl found
+
+GPU status:
+NVIDIA GeForce RTX 2080 Ti, 11264 MiB, 10823 MiB
+
+================================================================
+  Starting nnUNetv2_train
+  Dataset  : 001 (Dataset001_Mitochondria)
+  Config   : 2d
+  Fold     : 0
+================================================================
+

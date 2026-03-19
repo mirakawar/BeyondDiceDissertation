@@ -1,0 +1,28 @@
+{
+  "model": "nnunet",
+  "cases_total": 3312,
+  "cases_evaluated": 3312,
+  "cases_missing_binary": 0,
+  "cases_missing_probs": 0,
+  "cases_failed": 0,
+  "binary_dir": "/home/s2292949/dissertation_resplit/predictions/nnunet/binary",
+  "probs_dir": "/home/s2292949/dissertation_resplit/predictions/nnunet/probs",
+  "instances_dir": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs",
+  "thresholds": [
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7
+  ],
+  "default_threshold": 0.5,
+  "per_image_csv": "/home/s2292949/dissertation_resplit/evaluation/results/nnunet_per_image.csv",
+  "aggregate_csv": "/home/s2292949/dissertation_resplit/evaluation/results/nnunet_aggregate.csv",
+  "aggregate_gt_positive_csv": "/home/s2292949/dissertation_resplit/evaluation/results/nnunet_aggregate_gt_positive.csv",
+  "aggregate_gt_empty_csv": "/home/s2292949/dissertation_resplit/evaluation/results/nnunet_aggregate_gt_empty.csv",
+  "cases_gt_positive": 2694,
+  "cases_gt_empty": 618,
+  "missing_binary_case_ids": [],
+  "missing_probs_case_ids": [],
+  "failed_case_ids": []
+}
