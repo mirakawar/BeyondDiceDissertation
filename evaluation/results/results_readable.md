@@ -1,0 +1,85 @@
+# Final Resplit Results Summary
+
+Generated from `evaluation/results/` for `3,312` paired test cases on the corrected resplit test set.
+
+## Short Answer
+
+nnU-Net is the stronger model overall on the final resplit evaluation.
+
+At the default threshold `t = 0.5`, nnU-Net outperforms U-Net on the main voxel and object metrics:
+
+| Metric | U-Net | nnU-Net | Better |
+|---|---:|---:|---|
+| Foreground Dice | 0.6362 | 0.6857 | nnU-Net |
+| IoU | 0.5566 | 0.6141 | nnU-Net |
+| Precision | 0.7164 | 0.7730 | nnU-Net |
+| Recall | 0.6189 | 0.6590 | nnU-Net |
+| Boundary F1 (2 px) | 0.6259 | 0.6844 | nnU-Net |
+| Boundary F1 (5 px) | 0.6808 | 0.7291 | nnU-Net |
+| HD95 (px, lower is better) | 43.06 | 39.78 | nnU-Net |
+| ECE (lower is better) | 0.0197 | 0.0181 | nnU-Net |
+| Panoptic Quality (PQ) | 0.4798 | 0.5508 | nnU-Net |
+| Matched IoU mean | 0.4901 | 0.5194 | nnU-Net |
+| Object precision @ 0.5 | 0.6016 | 0.6946 | nnU-Net |
+| Object recall @ 0.5 | 0.5608 | 0.6062 | nnU-Net |
+
+## Positive-Slice Read
+
+On ground-truth-positive slices only (`n = 2,694`), the gap remains in nnU-Net's favour:
+
+| Metric | U-Net | nnU-Net | Better |
+|---|---:|---:|---|
+| Foreground Dice | 0.6122 | 0.6426 | nnU-Net |
+| IoU | 0.5143 | 0.5545 | nnU-Net |
+| Precision | 0.7107 | 0.7499 | nnU-Net |
+| Recall | 0.5909 | 0.6098 | nnU-Net |
+| Boundary F1 (2 px) | 0.5995 | 0.6409 | nnU-Net |
+| Boundary F1 (5 px) | 0.6670 | 0.6959 | nnU-Net |
+| HD95 (px, lower is better) | 56.14 | 49.56 | nnU-Net |
+| Panoptic Quality (PQ) | 0.4165 | 0.4760 | nnU-Net |
+| Object precision @ 0.5 | 0.5663 | 0.6527 | nnU-Net |
+| Object recall @ 0.5 | 0.5161 | 0.5440 | nnU-Net |
+
+## Error Pattern Snapshot
+
+The practical behaviour is mixed, but still favours nnU-Net overall:
+
+- Zero-Dice slices: `551` for U-Net versus `493` for nnU-Net.
+- Dice below `0.5`: `929` for U-Net versus `803` for nnU-Net.
+- Dice above `0.9`: `1005` for U-Net versus `1295` for nnU-Net.
+- Perfect Dice `= 1.0`: `458` for U-Net versus `540` for nnU-Net.
+- Missed positive slices: `278` for U-Net versus `331` for nnU-Net.
+- False positives on empty slices: `160` for U-Net versus `78` for nnU-Net.
+
+So, the U-Net does have one descriptive strength: it misses fewer positive slices outright. The trade-off is that it produces more false positives on empty slices and worse overlap and object quality on average.
+
+## Statistical Significance
+
+Formal paired significance testing was completed using Wilcoxon signed-rank tests with Benjamini--Hochberg correction across `27` paired metrics.
+
+- Metrics tested: `27`
+- Metrics significant after BH correction at `0.05`: `27`
+- Metrics won by nnU-Net after correcting for metric direction: `27`
+- Metrics won by U-Net in the formal test set: `0`
+
+These results are saved in:
+
+- `evaluation/results/stats_tests.csv`
+- `evaluation/results/stats_tests_summary.json`
+
+Important note: the initial winner labels in the significance script were briefly wrong for lower-is-better metrics like HD95, ECE, and connectivity-style errors. That direction bug has now been fixed, and the saved outputs reflect the corrected interpretation.
+
+The strongest concise interpretation is:
+
+- nnU-Net is not just descriptively ahead on most key metrics.
+- On this paired test set, the advantage is also inferentially robust across every tested metric.
+- The largest adjusted p-value in the corrected significance table is still extremely small (`5.48e-08` for `obj_count_error`), so none of the tested differences are borderline.
+
+## Bottom Line
+
+The final resplit evaluation supports a clear conclusion:
+
+- nnU-Net is the better model overall on the corrected test set.
+- The advantage is consistent across voxel overlap, boundaries, object-level quality, calibration, and error-rate metrics.
+- U-Net remains meaningful as a baseline because it is much stronger than the older dissertation U-Net and slightly reduces fully missed positive slices.
+- However, the final head-to-head result still favours nnU-Net, and the formal significance analysis now supports that conclusion directly.

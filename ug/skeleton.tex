@@ -1249,9 +1249,11 @@ is confined to one dataset; results should not be assumed to generalise beyond
 the conditions represented in CEM-MitoLab. In addition, U-Net test inference
 had to fall back to raw TIFF images with z-score normalisation because no test
 \texttt{.b2nd} tensors were available, introducing a small mismatch between the
-U-Net's training-time and test-time input path. Finally, no type-specific or
-formal statistical significance analysis was completed for the final resplit
-evaluation, so the comparison is descriptive rather than inferential.
+U-Net's training-time and test-time input path. Formal paired significance
+testing was completed for the final resplit evaluation using Wilcoxon
+signed-rank tests with Benjamini--Hochberg correction, but the inferential
+analysis is still limited to paired 2D slice-level metrics on a single dataset
+and therefore should not be overgeneralised beyond this experimental setting.
 
 Future work could evaluate nnU-Net with its full five-fold ensemble, compare the
 current semantic models against genuinely instance-aware alternatives, apply the

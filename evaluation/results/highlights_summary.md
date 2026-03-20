@@ -117,6 +117,14 @@ nnU-Net stays ahead across the full threshold sweep, so the comparison is not be
 - Obj recall @0.5: nnU-Net is higher by **0.0454** overall.
 - HD95: nnU-Net is lower by **6.85 px** overall and **6.58 px** on GT-positive slices.
 
+## Statistical Significance
+
+- Formal paired significance testing was completed using Wilcoxon signed-rank tests with Benjamini--Hochberg correction across `27` paired metrics.
+- After correcting the direction logic for lower-is-better metrics such as HD95, ECE, and connectivity-style errors, **all 27 of 27 tested metrics favour nnU-Net**.
+- All `27` tested differences remain significant after BH correction at `0.05`.
+- The adjusted p-values are all very small; the largest is `5.48e-08` for `obj_count_error`, so none of the tested results are borderline.
+- Descriptive exceptions still exist, such as U-Net having fewer completely missed positive slices (`278` vs `331`) and less negative signed count error, but those are not wins in the corrected formal metric set.
+
 ## Bottom Line
 
 - On the corrected resplit test set, nnU-Net is the stronger model overall.

@@ -1,6 +1,7 @@
 """
 Statistical significance tests: Wilcoxon signed-rank + Benjamini-Hochberg FDR correction.
-Compares U-Net vs nnU-Net across all key metrics on the paired test set (same 5,677 cases).
+Compares U-Net vs nnU-Net across all key metrics on the paired resplit test set
+(shared cases are determined automatically from the per-image result tables).
 
 Outputs:
   evaluation/results/stats_tests.csv   -- full results per metric
@@ -49,6 +50,15 @@ METRICS = [
     "obj_precision_t90",
     "obj_recall_t90",
 ]
+
+LOWER_IS_BETTER = {
+    "hd95_t50",
+    "ece",
+    "obj_count_error",
+    "merge_rate",
+    "split_rate",
+    "connectivity_error",
+}
 
 
 def bh_correction(p_values, alpha=0.05):
@@ -129,10 +139,16 @@ def main():
     for i, row in enumerate(rows):
         row["p_adjusted_bh"] = float(p_adj[i])
         row["significant_bh005"] = bool(rejected[i])
-        # Direction: positive diff means U-Net > nnU-Net
-        row["better_model"] = (
-            "U-Net" if row["mean_diff_unet_minus_nnunet"] > 0 else "nnU-Net"
-        )
+        if row["metric"] in LOWER_IS_BETTER:
+            row["better_model"] = (
+                "U-Net" if row["mean_diff_unet_minus_nnunet"] < 0 else "nnU-Net"
+            )
+            row["better_direction"] = "lower"
+        else:
+            row["better_model"] = (
+                "U-Net" if row["mean_diff_unet_minus_nnunet"] > 0 else "nnU-Net"
+            )
+            row["better_direction"] = "higher"
 
     df = pd.DataFrame(rows)
     out_csv = RESULTS_DIR / "stats_tests.csv"
@@ -144,8 +160,8 @@ def main():
     summary = {
         "n_metrics_tested": len(df),
         "n_significant_bh005": int(sig["significant_bh005"].sum()),
-        "n_nnunet_better": int((df["mean_diff_unet_minus_nnunet"] < 0).sum()),
-        "n_unet_better": int((df["mean_diff_unet_minus_nnunet"] > 0).sum()),
+        "n_nnunet_better": int((df["better_model"] == "nnU-Net").sum()),
+        "n_unet_better": int((df["better_model"] == "U-Net").sum()),
         "significant_metrics": sig["metric"].tolist(),
     }
     out_json = RESULTS_DIR / "stats_tests_summary.json"
