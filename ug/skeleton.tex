@@ -1,5 +1,3 @@
-% !TEX root = skeleton.tex
-
 % UG project example file, February 2024
 %
 %   Added the "online" option for equal margins, February 2024 [Hiroshi Shimodaira, Iain Murray]
@@ -60,18 +58,19 @@ Deep learning models for mitochondria segmentation in electron microscopy (EM)
 images are routinely evaluated using the Dice similarity coefficient, a
 pixel-level overlap metric that is convenient but insensitive to biologically
 significant failure modes such as object merges, splits, and incorrect
-organelle counts. This dissertation presents a standardised evaluation pipeline
+object counts. This dissertation presents a standardised evaluation pipeline
 comparing a custom U-Net and the self-configuring nnU-Net framework on the
 CEM-MitoLab dataset (EMPIAR-11037), a heterogeneous collection of 21,871
 annotated 2D EM image slices spanning multiple organisms, cell types, and
-imaging modalities. Both models are trained and evaluated under identical data
-conditions using a stratified 70/15/15 train/validation/test split at the
-biological source level.
+imaging modalities. Both models are trained and evaluated using a shared
+biological source-level split and common evaluation setup, with a stratified
+70/15/15 train/validation/test partition.
 
-The study tests three related claims: that Dice compresses biologically
-important performance differences, that it fails to distinguish topologically
-different error modes such as merges and splits, and that apparently strong Dice
-scores can still conceal biologically important errors. To address this, the
+The study examines three related questions: whether Dice can understate
+biologically important performance differences, whether it adequately
+distinguishes topologically different error modes such as merges and splits, and
+whether apparently strong Dice scores can still conceal biologically important
+errors. To address this, the
 evaluation combines voxel-level metrics with object-level metrics derived from
 the instance-labelled ground truth, together with corner-case and stratified
 analyses. The main methodological contribution is a reproducible evaluation
@@ -138,7 +137,7 @@ for mitochondria segmentation \citep{aswath2023segmentation}. These methods
 have advanced rapidly, from early patch-based convolutional networks to the
 encoder-decoder U-Net architecture \citep{ronneberger2015unet} and, more
 recently, the self-configuring nnU-Net framework \citep{isensee2021nnu}, which
-automates hyperparameter selection from dataset properties alone.
+adjusts its setup automatically based on dataset properties.
 
 \section{Problem, Aim, and Research Question}
 
@@ -151,7 +150,7 @@ single mitochondrion into multiple predicted components, merging adjacent
 mitochondria into one, or misestimating the total number of
 mitochondria in a field of view. Such errors directly distort downstream
 biological analyses of organelle count, size distribution, and spatial
-organisation \citep{wei2020mitoem, franco-barranco2022stable}.
+organisation \citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}.
 
 This dissertation investigates whether standard voxel-overlap metrics are
 sufficient for comparing segmentation models in a biology-facing setting. The
@@ -230,52 +229,57 @@ future work.
 \chapter{Background and Related Work}
 Electron microscopy (EM) is valuable for mitochondria segmentation because it
 provides the spatial detail needed to resolve organelle boundaries and internal
-structure. That same detail also makes the task difficult. Mitochondria vary in
+structure \citep{aswath2023segmentation, conrad2023instance}. That same detail
+also makes the task
+difficult. Mitochondria vary in
 size, shape, contrast, and local context, and they often appear in close
 contact with one another \citep{aswath2023segmentation, wei2020mitoem}. For
-that reason, segmentation errors are often biologically meaningful rather than
-minor: they appear as merges, splits, or incorrect counts.
+that reason, segmentation errors are often biologically meaningful: they 
+appear as merges, splits, or incorrect objectcounts
+\citep{wei2020mitoem, franco-barranco2022stable, conrad2023instance}.
 
-A paper that reports high pixel overlap is not automatically solving the biologically relevant problem.
+A paper that reports high pixel overlap is not automatically solving the
+biologically relevant problem \citep{wei2020mitoem, conrad2023instance}.
 Foreground-background classification and instance reliability are related, but
 not equivalent. A model may recover most mitochondria pixels correctly while
-still distorting the number or shape of individual organelles. For this dissertation, 
-the central question is whether methods that score well on benchmarks also produce 
-segmentations that remain reliable for object-level biological analysis.
+still distorting the number or shape of individual organelles. The central
+question is whether methods that score well on benchmarks also produce
+segmentations that remain reliable for object-level biological analysis
+\citep{wei2020mitoem, franco-barranco2022stable, conrad2023instance}.
 
 \section{Dataset Choice}
 
 Smaller datasets such as Lucchi
-and Lucchi++ have been useful for benchmarking, but they are now limited as
-stress tests because performance has largely saturated and differences between
-methods may not reflect behaviour on harder morphologies
-\citep{lucchi2012supervoxel, franco-barranco2022stable, conrad2023instance}. Their main strength is
-that they support clean, repeatable benchmarking with relatively stable labels.
-Their main weakness is that they are too narrow to support strong claims about
-robustness across imaging conditions or mitochondrial phenotypes. A method that
-looks convincing on Lucchi-style data may simply not have been challenged very
-hard.
+and the re-annotated Lucchi++ benchmark have been useful for benchmarking, but they
+are limited stress tests because reported overlap scores on them are already
+high and their scope is comparatively narrow
+\citep{lucchi2012supervoxel, casser2020fast, franco-barranco2022stable,
+conrad2023instance}. Their main strength is that they support clean,
+repeatable benchmarking with relatively stable labels. Their main weakness is
+scope: success on Lucchi-style data is not strong evidence of robustness across
+imaging conditions or mitochondrial morphologies.
 
-MitoEM is much harder and remains important because it contains tightly packed
-mitochondria and complex morphologies such as mitochondria-on-a-string
-\citep{wei2020mitoem}. Its value is that it exposes failure modes hidden by
-simpler benchmarks, especially failures of separation between adjacent
-organelles. That makes it a better diagnostic dataset than Lucchi for this
-dissertation's concerns. At the same time, MitoEM is still more narrowly defined
-than CEM-MitoLab and is often used to motivate specialised instance-aware
-pipelines. It therefore demonstrates the importance of the problem very well,
-but is less well suited to asking whether two general-purpose semantic pipelines
-remain reliable across a broader range of biological sources.
+MitoEM is harder in a way that is directly relevant here. Its authors report
+around 40K instances with great diversity in shape and density, and show that
+existing methods often fail on complex shapes or close contacts with other
+instances \citep{wei2020mitoem}. That makes MitoEM a better diagnostic dataset
+than Lucchi for separation failures. At the same time, MitoEM is still derived
+from human and rat cortex volumes, whereas CEM-MitoLab was assembled to cover a
+broader range of tissues, organisms, imaging techniques, and resolutions
+\citep{wei2020mitoem, conrad2023instance}. That narrower biological scope makes
+MitoEM less suitable than CEM-MitoLab for asking how general-purpose semantic
+pipelines behave across varied sources.
 
-CEM-MitoLab is the most relevant dataset for this dissertation because it is
-large and deliberately heterogeneous, combining material from many imaging
-conditions, organisms, and biological sources \citep{xie2025transfer,
-conrad2023instance}. This breadth is a strength because it makes the comparison
-less dependent on a single narrow imaging regime. It also raises the standard
-for evaluation: if a model performs well here, that result is harder to dismiss
-as benchmark overfitting. The drawback is that heterogeneity also introduces
-greater variation in label style, image quality, and local difficulty. This
-means raw overlap scores become harder to interpret in isolation.
+CEM-MitoLab is the most relevant dataset in this comparison because it was
+constructed as a deliberately heterogeneous mitochondria benchmark, combining
+legacy labels and crowdsourced annotations into 21,871
+annotated 2D images containing 135,285 mitochondrial instances from varied
+image sizes, resolutions, imaging techniques, cells, tissues, and organisms
+\citep{conrad2023instance}. That breadth is a strength because it makes the
+comparison less dependent on a single narrow imaging
+regime. The trade-off is that heterogeneity also introduces greater variation
+in label style, image quality, and local difficulty, so raw overlap scores are
+harder to interpret in isolation.
 
 \section{Segmentation Approaches in the Literature}
 
@@ -284,36 +288,39 @@ useful distinction is between semantic models, which assign pixels to
 foreground or background, and methods that explicitly target instance
 separation. Recent work also places greater emphasis on generalisation across
 datasets and imaging conditions. This section introduces the main approaches
-needed for the rest of the chapter.
+needed for the rest of the chapter \citep{aswath2023segmentation,
+conrad2023instance, xie2025transfer, huang2025generalist}.
 
 \subsection{U-Net as the Standard Semantic Baseline}
 
 U-Net, introduced by \citet{ronneberger2015unet}, is an encoder-decoder
 convolutional network designed for dense biomedical image segmentation. The
 contracting path extracts increasingly abstract features, while the expanding
-path upsamples those features back to the original image resolution. Skip
+path upsamples those features back toward the input resolution. Skip
 connections link corresponding encoder and decoder stages so that fine spatial
 detail is preserved during reconstruction. This combination of local detail and
 global context is one reason U-Net became so influential in biomedical
-segmentation.
+segmentation \citep{ronneberger2015unet, aswath2023segmentation}.
 
 For mitochondria segmentation, U-Net is especially relevant because EM images
 contain thin boundaries, ambiguous textures, and tightly packed structures.
-Later work often still compares against a U-Net variant even when proposing more
-specialised methods \citep{conrad2023instance, oktay2018attention}. One major
-strength of U-Net is therefore that it is clear, well understood, and easy to
-adapt. At the same time, a reported "U-Net baseline" is often less standard than
+U-Net variants also remain common in mitochondria segmentation papers, including
+real-time 2D systems, boundary-aware 3D pipelines, and more recent automated
+EM segmentation workflows \citep{casser2020fast, wei2020mitoem,
+jang2025deep}. One major strength of U-Net is that it is clear, well
+understood, and easy to adapt. At the same time, a reported "U-Net baseline" is often less standard than
 it appears. Patch size, normalisation, augmentation, loss weighting, and
 optimisation can all change performance substantially, so improvements over a
 U-Net baseline sometimes reflect differences in training setup and tuning, not
-just differences in model design.
+just differences in model design \citep{isensee2021nnu,
+franco-barranco2022stable}.
 
 There is also a task-specific limitation. Standard U-Net predicts a semantic
 foreground mask rather than explicit object instances. Separate mitochondria can
 be recovered afterwards with connected-component analysis or other
 post-processing, but the network itself is not trained to preserve object
 identity. Merge and split errors therefore remain an expected failure mode even
-when pixel overlap is strong.
+when pixel overlap is strong \citep{wei2020mitoem, conrad2023instance}.
 
 \subsection{nnU-Net as an Automated Baseline}
 
@@ -323,7 +330,8 @@ starts from a dataset fingerprint, including image size, spacing, class balance,
 and intensity statistics, and uses a set of heuristic rules to choose the
 preprocessing pipeline, architecture configuration, patch size, training
 schedule, and inference procedure. Depending on the dataset, this may lead to a
-2D U-Net, a 3D U-Net, or a cascade.
+2D U-Net, a 3D U-Net, or a cascade \citep{isensee2021nnu,
+cicek2016threeDunet}.
 
 The main strength of nnU-Net is standardisation. It reduces the number of manual
 design choices that can quietly shape performance and has become a widely used
@@ -331,14 +339,14 @@ reference point in biomedical segmentation because it performs strongly across a
 large range of tasks \citep{isensee2021nnu}. It is therefore important in the
 current literature both as a practical tool and as an argument that a large
 share of segmentation performance comes from sound engineering decisions rather
-than from increasingly specialised architectures alone.
+than from increasingly specialised architectures alone \citep{isensee2021nnu}.
 
 nnU-Net also has limitations. It can be computationally heavy, especially in
 its full five-fold ensemble form, and it is still usually judged by benchmark
 overlap scores. High semantic segmentation accuracy under that standard does not
 necessarily mean that individual mitochondria are segmented in a way that
 preserves correct counts, boundaries, or separation between neighbouring
-objects.
+objects \citep{isensee2021nnu, wei2020mitoem, conrad2023instance}.
 
 \subsection{Instance-Aware Methods and What They Show}
 
@@ -363,22 +371,25 @@ separating individual mitochondria is a different problem from achieving strong
 foreground overlap.
 
 \citet{conrad2023instance} make a similar contribution through MitoNet, a
-generalist instance segmentation model built on Panoptic-DeepLab and trained on
-the diverse CEM-MitoLab dataset. The paper is important because it shows that
-instance-labelled mitochondria data can support richer forms of analysis than
-binary masks alone, and that broad training data can improve generalisation.
-Its primary contribution, however, is resource creation and generalist instance
-segmentation rather than a controlled comparison between semantic baselines.
+generalist instance segmentation model built on Panoptic-DeepLab
+\citep{cheng2020panopticdeeplab} and trained on the diverse CEM-MitoLab and
+CEM1.5M resources \citep{conrad2023instance}. It pairs a generalist instance
+model with broad training data and challenging unseen benchmarks. More
+importantly, it shows what richer instance-labelled data and broader sampling
+can enable, but it is not a controlled comparison between semantic baselines.
 
 Shape-aware and transformer-based methods push this further by encoding priors
 about mitochondrial geometry or long-range structure
 \citep{aswath2023segmentation, chen2025gctransnet}. Their advantage is that
 they are designed for precisely the elongated, tightly packed, or fragmented
 structures that cause merge and split errors. This is a real improvement over
-plain semantic masking when the goal is instance fidelity. Their drawback is
+plain semantic masking when the goal is accurate instance separation. Their drawback is
 that they are harder to compare fairly with simpler baselines, because they
 often change the task formulation, supervision, dimensionality, and
-computational cost at the same time.
+computational cost at the same time. As a result, they show that instance-aware
+performance can be improved, but they do not make it easy to isolate whether
+the gain comes from architecture, supervision, dimensionality, or evaluation
+protocol.
 
 \subsection{Recent Trends in the Literature}
 
@@ -389,14 +400,15 @@ organelle segmentation across tissues, while \citet{huang2025generalist}
 emphasise a generalist deep-learning segmentation tool for volume electron
 microscopy. This line of work addresses a real weakness in older benchmark
 culture: models that look strong on one curated dataset may not transfer well.
-Its limitation is that it focuses more on generalisation and usability than on
-how biological reliability should be evaluated.
+It speaks more to generalisation and usability than to how biological
+reliability should be evaluated.
 
 A second direction is increasing task sophistication. Papers such as
 \citet{jang2025deep} and \citet{chen2025gctransnet} continue to improve
 segmentation quality through stronger architectures, richer context modelling,
 or more specialised post-processing. \citet{jang2025deep} present an automated
-mitochondrial segmentation pipeline for complex transmission electron microscopy images, while
+mitochondrial segmentation pipeline for complex transmission electron microscopy
+images, while
 \citet{chen2025gctransnet} introduce GCTransNet, a 3D transformer-based
 pipeline. These methods make the literature harder to compare directly, because
 task formulation, dimensionality, supervision, and computational cost often
@@ -407,10 +419,12 @@ This point is reinforced by broader organelle-segmentation work such as
 benefit from substantial annotation effort, specialised pipelines, and
 application-specific engineering. That literature is valuable because it shows
 how far segmentation systems can be pushed in well-resourced settings. It is
-less useful as a direct template for this dissertation, because it often mixes
+less useful as a direct template for the present comparison, because it often mixes
 multiple organelles, 3D context, and highly customised workflows. These papers
 are best read as context for the field rather than as direct baselines for a
-mitochondria-specific comparison.
+mitochondria-specific comparison. They show where the field is moving, but they
+do not provide a clean basis for judging whether two semantic
+mitochondria-segmentation pipelines differ in biologically meaningful ways.
 
 \section{Evaluation Metrics and Their Limits}
 \label{sec:bg-metrics}
@@ -418,12 +432,13 @@ mitochondria-specific comparison.
 \subsection{Why Overlap Metrics Persist}
 
 Dice and IoU dominate the segmentation literature because they are simple,
-interpretable, and easy to compare across papers. Dice is especially popular in
+interpretable, and widely reported across papers. Dice is especially popular in
 biomedical segmentation because it is less harsh than IoU under class imbalance
 and is often used directly as both a training objective and a reporting metric
-\citep{franco-barranco2022stable, isensee2021nnu}. Precision, recall, and
-boundary-sensitive measures such as HD95 provide additional detail about false
-positives, false negatives, and local contour error.
+\citep{taha2015metrics, franco-barranco2022stable, isensee2021nnu}.
+Precision, recall, and boundary-sensitive measures such as HD95 provide
+additional detail about false positives, false negatives, and local contour
+error \citep{taha2015metrics}.
 
 For a predicted mask $P$ and ground-truth mask $G$, the Dice similarity
 coefficient is defined as:
@@ -435,15 +450,15 @@ and the Intersection over Union (IoU) is:
 \text{IoU} = \frac{|P \cap G|}{|P \cup G|}
 \]
 Both range from 0 to 1, but IoU is stricter because it penalises disagreement
-more heavily for the same prediction \citep{franco-barranco2022stable,
-isensee2021nnu}. When written in terms of true positives (TP), false positives
-(FP), and false negatives (FN), pixel-level precision and recall are:
+more heavily for the same prediction \citep{taha2015metrics}. When written in terms of true
+positives (TP), false positives (FP), and false negatives (FN), pixel-level
+precision and recall are:
 \[
 \text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}, \qquad
 \text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
 \]
 which makes clear that they separate over-prediction from under-prediction in a
-way Dice alone does not \citep{franco-barranco2022stable, isensee2021nnu}.
+way Dice alone does not \citep{taha2015metrics}.
 
 
 These metrics persist for good reasons. They are easy to compute, widely
@@ -455,16 +470,17 @@ separate false-positive from false-negative behaviour in a way Dice does not,
 and boundary-sensitive metrics can expose contour quality that overlap scores
 blur. These metrics are useful, but they all describe agreement at the pixel
 level. On their own, they do not show whether the model has recovered the
-correct mitochondria as distinct objects.
+correct mitochondria as distinct objects \citep{taha2015metrics,
+wei2020mitoem, conrad2023instance}.
 
-Sometimes, comparison is complicated by inconsistent reporting. "Dice" may refer to
-foreground Dice, mean Dice over classes, per-image averages, dataset-level
-aggregates, or scores computed after different thresholding and post-processing
-choices. Two papers can therefore both report Dice without reporting directly
-comparable quantities.
+Comparison is also complicated because Dice can be aggregated in several valid
+ways and can change with thresholding or post-processing choices. It may refer
+to foreground Dice, mean Dice over classes, per-image averages, or dataset-level
+aggregates. Unless those choices are stated clearly, two papers can both report
+Dice without reporting exactly the same quantity \citep{taha2015metrics}.
 
-This dissertation uses several voxel-level summaries, and each one answers a
-slightly different question. Foreground Dice is the main overlap measure because
+Several voxel-level summaries are useful because each one answers a slightly
+different question. Foreground Dice is the main overlap measure because
 it reflects agreement on the mitochondria class directly. Background Dice is
 usually easier to satisfy, especially in sparse images, so it is useful mainly
 for checking whether performance is being inflated by the dominance of
@@ -472,13 +488,13 @@ background pixels. Mean Dice averages the two classes, which can be convenient
 as a balanced summary but may still hide the fact that foreground quality is
 the harder part of the task. IoU, precision, and recall provide a stricter and
 more diagnostic view of the same predictions, especially by separating
-over-prediction from under-prediction.
+over-prediction from under-prediction \citep{taha2015metrics}.
 
 \subsection{Why Overlap Metrics Are Not Enough}
 
 This limitation is not just theoretical. \citet{franco-barranco2022stable}
-show that overlap-based benchmark scores can become very similar even when
-segmentation quality still differs in visually and biologically important ways.
+show that overlap-based benchmark scores on established datasets can become very
+similar even when qualitative differences in the predictions remain visible.
 When that happens, small reported gains are harder to interpret as meaningful
 practical improvement. \citet{wei2020mitoem} make a related point from the
 instance-segmentation side: boundary-aware methods are needed because overlap
@@ -495,13 +511,16 @@ similar overlap scores. Dice and IoU therefore answer only part of the question.
 They tell us how well foreground pixels match, but not whether the model has
 preserved the object structure that many biological analyses rely on. The
 relevant criticism, then, is not that overlap metrics are useless, but that they
-are incomplete for biology-facing evaluation.
+are incomplete for biology-facing evaluation \citep{wei2020mitoem,
+conrad2023instance}.
 
-The dissertation also examines threshold sensitivity by repeating foreground
+The evaluation also examines threshold sensitivity by repeating foreground
 Dice across several binarisation thresholds. This is useful because a model can
 appear strong at the default threshold while depending on unusually fragile
-probability calibration. A robust segmentation model should not change its
-practical ranking dramatically under small threshold adjustments. This is not a
+probability calibration \citep{guo2017calibration}. Here, threshold sensitivity is treated
+as a practical robustness check rather than a standard literature metric. If a
+model's apparent quality changes sharply under small threshold adjustments, that
+makes its headline overlap score harder to trust in use. This is not a
 replacement for other metrics, but it helps distinguish models whose reported
 overlap is stable from those whose apparent quality is threshold-dependent.
 
@@ -513,7 +532,8 @@ the two topological error modes that matter most for this dissertation. Object
 count error measures the practical consequence of those failures for
 count-based analysis. Panoptic Quality (PQ) goes further by combining detection
 and segmentation quality into a stricter instance-level summary
-\citep{kirillov2019panoptic}.
+\citep{wei2020mitoem, conrad2023instance, cheng2020panopticdeeplab,
+kirillov2019panoptic}.
 
 In its standard form,
 \[
@@ -527,8 +547,9 @@ In its standard form,
 }_{\text{Detection Quality (DQ)}}
 \]
 so it rewards not only accurate overlaps for matched instances, but also
-penalises missing and spurious objects. This is why PQ is harder to inflate
-than pixel-level Dice \citep{kirillov2019panoptic}.
+penalises missing and spurious objects. This makes PQ less forgiving than
+pixel-level Dice because missing and spurious instances are penalised directly
+\citep{kirillov2019panoptic}.
 
 Compared with Dice or IoU, these metrics ask a harder and more relevant
 question: not just whether a segmentation overlaps the target, but whether it
@@ -546,52 +567,45 @@ missing or extra objects. Object precision and object recall at multiple IoU
 thresholds make this stricter or looser in a controlled way: low thresholds ask
 whether the right objects were found at all, while high thresholds ask whether
 they were recovered accurately enough to support closer biological inspection.
-These thresholded object measures are less common in mitochondria papers than
-Dice, but they are helpful here because they reveal whether one model's apparent
+These thresholded object measures are helpful because they reveal whether one model's apparent
 advantage depends on forgiving or stringent matching.
 
 These metrics also have limitations. Count error is easy to interpret, but it
 does not explain why the count is wrong. Merge and split rates are highly
-diagnostic, but less standardised across papers than Dice or IoU. PQ is harder
-to inflate than Dice, but it still depends on a matching threshold and
+diagnostic, but less standardised across papers than Dice or IoU. PQ is less
+forgiving than Dice, but it still depends on a matching threshold and
 compresses multiple behaviours into one number. The implication is not that any
 single object metric solves evaluation on its own. Rather, object-level metrics
 provide the missing evidence needed to interpret whether strong semantic scores
-actually correspond to biologically reliable predictions.
+actually correspond to biologically reliable predictions
+\citep{wei2020mitoem, kirillov2019panoptic, conrad2023instance,
+cheng2020panopticdeeplab}. The unresolved issue is therefore not whether
+object-level metrics are perfect, but whether overlap-only evaluation is
+sufficient without them.
 
 \subsection{Boundary and Calibration Metrics}
 
-Between pure overlap metrics and pure object-level metrics, this dissertation
-also uses two intermediate families of measures: boundary quality and
-calibration. These are less common in mitochondria segmentation papers than
-Dice, but they are useful because they expose different weaknesses in model
-behaviour.
+Between pure overlap metrics and pure object-level metrics, two intermediate
+families of measures are also useful: boundary quality and calibration. They
+expose different weaknesses in model behaviour
+\citep{taha2015metrics, guo2017calibration}.
 
-HD95 summarises the 95th percentile Hausdorff distance between predicted and
-ground-truth boundaries. Its strength is that it detects large local contour
-errors that overlap metrics may blur, especially around thin protrusions or
-misshapen borders. Its weakness is that it can be unstable on extreme failure
-cases and is sensitive to outlier geometry, which is why the 95th percentile is
-preferred over the raw Hausdorff maximum. Boundary F1 at fixed tolerances
-provides a more directly interpretable alternative: it asks what proportion of
-predicted and true boundary pixels fall within a small tolerance band. Using two
-tolerances, 2px and 5px, gives a stricter and more forgiving view of contour
-quality. These metrics are still not object-aware, but they are more sensitive
-to boundary fidelity than Dice or IoU alone.
+HD95 captures large boundary deviations while reducing sensitivity to single
+extreme outliers, which makes it useful for detecting contour errors that Dice
+or IoU can miss \citep{taha2015metrics}. Boundary F1 complements this by asking
+how much of the predicted and true boundary lies within a chosen tolerance
+band \citep{martin2001segmentation}. Here, 2px and 5px are used
+as stricter and more forgiving views of contour accuracy. These metrics are more sensitive 
+to boundary quality than overlap scores alone.
 
-Expected Calibration Error (ECE) addresses a different issue. A segmentation
-model does not only output hard masks; it also produces confidence values.
-Calibration asks whether those confidence values are trustworthy. A model is
-poorly calibrated if it is systematically overconfident or underconfident,
-regardless of whether its hard predictions are good. This matters here because
-threshold sensitivity and confidence reliability both affect how easy a model is
-to use in practice. A method that looks strong on Dice but produces poorly
-calibrated probabilities may be less dependable when decision thresholds change
-or when a biologist tries to interpret uncertainty.
+Expected Calibration Error (ECE) measures whether predicted confidence matches
+observed accuracy \citep{guo2017calibration}. This matters because a model can
+achieve strong overlap while remaining overconfident or underconfident, which
+makes threshold choice and uncertainty interpretation less reliable.
 
 \subsection{The Full Metric Set Used in This Dissertation}
 
-The final evaluation therefore combines several metric families rather than
+The evaluation therefore combines several metric groups rather than
 relying on a single headline score. At the voxel level, it reports foreground
 Dice, background Dice, mean Dice, IoU, precision, and recall. It also tests
 foreground Dice across multiple probability thresholds to assess threshold
@@ -599,37 +613,38 @@ stability. At the boundary level, it reports HD95 and boundary F1 at 2-pixel
 and 5-pixel tolerances. At the calibration level, it reports ECE. At the
 object level, it reports object count error, merge rate, split rate, matched
 instance IoU, object precision and recall at multiple IoU thresholds, and PQ.
-These are not redundant diagnostics. Together they separate semantic overlap,
+Together they separate semantic overlap,
 contour quality, confidence reliability, object recovery, and object
 separation.
 
 Each metric family is included for a reason. Overlap metrics summarise semantic
-agreement. Boundary metrics test contour quality. Calibration tests confidence
+agreement. Boundary metrics test contour quality. Calibration metrics test confidence
 reliability. Object-level metrics test whether the predicted mitochondria are
 usable as biological objects. The chapter's main critical point is that none of
-these families is sufficient on its own. Dice remains useful, but it is only one
+these metric groups is sufficient on its own. Dice remains useful, but it is only one
 part of a defensible biology-facing evaluation.
 
 \section{Gap Addressed by This Dissertation}
 
-The literature makes three points clear. First, U-Net-style semantic models
-remain strong and widely used baselines. Second, nnU-Net provides a powerful
-automated alternative to manual configuration. Third, overlap metrics remain the
-dominant reporting standard even though prior work already suggests that they
-are insufficient for instance-sensitive biological analysis.
+The literature establishes that U-Net-style semantic models remain widely used,
+that nnU-Net is a strong self-configuring baseline, and that overlap metrics
+such as Dice remain the dominant reporting standard. What is still missing is a
+controlled comparison between semantic models that tests whether overlap metrics
+alone are sufficient for biology-facing evaluation \citep{ronneberger2015unet,
+isensee2021nnu, franco-barranco2022stable, wei2020mitoem,
+conrad2023instance}.
 
-What the literature does less well is connect these points in a controlled way.
-Many papers either compare specialised models under different supervision setups,
-or report semantic scores without asking whether those scores are biologically
-sufficient. The missing comparison is not another leaderboard-style benchmark. It is
-a controlled test of how a manually designed semantic model and a
-self-configuring semantic model compare when they are trained on the same
-biological source-level split, evaluated with the same post-processing, and
-judged using both voxel-level and object-level metrics on a heterogeneous EM
-dataset. This dissertation addresses that gap directly. Its contribution is not
-to propose a new segmentation architecture, but to show how the judgement of
-model quality changes once biological reliability, rather than overlap alone,
-becomes part of the basis for comparison.
+Across the papers discussed above, model comparisons are often made under
+different supervision setups, datasets, dimensionalities, or evaluation
+protocols \citep{wei2020mitoem, conrad2023instance, xie2025transfer,
+chen2025gctransnet}. As a result, it is often hard to separate differences in
+model behaviour from differences in experimental setup.
+This dissertation addresses that gap by comparing a custom U-Net and nnU-Net on
+the same biological source-level split, with shared post-processing and both
+voxel-level and object-level evaluation on CEM-MitoLab. The aim is not to
+propose a new segmentation model, but to test whether overlap-based evaluation
+alone gives a complete account of model quality in this setting.
+
 
 
 
