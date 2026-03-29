@@ -1,0 +1,26 @@
+{
+  "stratifications": [
+    "fg_quartile (non-empty slices only)",
+    "obj_count_quartile (non-empty slices only)",
+    "sample_type (_2D/_3D/other proxy)",
+    "empty_vs_nonempty"
+  ],
+  "key_metrics": [
+    "dice_fg_t50",
+    "iou_t50",
+    "precision_t50",
+    "recall_t50",
+    "hd95_t50",
+    "boundary_f1_2px_t50",
+    "boundary_f1_5px_t50",
+    "ece",
+    "obj_count_error",
+    "merge_rate",
+    "split_rate",
+    "pq_iou50",
+    "obj_precision_t50",
+    "obj_recall_t50"
+  ],
+  "n_test_images": 3312,
+  "n_non_empty": 2694
+}
