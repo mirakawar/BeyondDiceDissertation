@@ -58,7 +58,6 @@
       0.6,
       0.7
     ],
-    "min_object_size_px": 10,
     "hd95_units": "pixels",
     "boundary_f1_tolerances": [
       2,

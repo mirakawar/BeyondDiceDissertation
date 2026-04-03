@@ -15,10 +15,11 @@ from pathlib import Path
 from scipy import stats
 from scipy.stats import wilcoxon
 
-RESULTS_DIR = Path("/home/s2292949/dissertation_resplit/evaluation/results")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RESULTS_DIR = REPO_ROOT / "evaluation/results"
 
 METRICS = [
-    # Voxel-level @ t=0.5
+
     "dice_fg_t50",
     "dice_bg_t50",
     "iou_t50",
@@ -27,14 +28,14 @@ METRICS = [
     "hd95_t50",
     "boundary_f1_2px_t50",
     "boundary_f1_5px_t50",
-    # Threshold sensitivity (fg dice only)
+
     "dice_fg_t30",
     "dice_fg_t40",
     "dice_fg_t60",
     "dice_fg_t70",
-    # Calibration
+
     "ece",
-    # Object-level
+
     "obj_count_error",
     "merge_rate",
     "split_rate",
@@ -60,7 +61,6 @@ LOWER_IS_BETTER = {
     "connectivity_error",
 }
 
-
 def bh_correction(p_values, alpha=0.05):
     """Benjamini-Hochberg FDR correction. Returns adjusted p-values and rejected flags."""
     p = np.array(p_values, dtype=float)
@@ -70,9 +70,8 @@ def bh_correction(p_values, alpha=0.05):
     for rank_i, original_i in enumerate(order):
         ranked[original_i] = rank_i + 1
 
-    # Adjusted p: p_adj[i] = p[i] * n / rank[i], capped at 1, then enforced monotone
     p_adj = np.minimum(1.0, p * n / ranked)
-    # Enforce monotonicity from the largest rank down
+
     for i in range(n - 2, -1, -1):
         orig = order[i]
         orig_next = order[i + 1]
@@ -81,12 +80,10 @@ def bh_correction(p_values, alpha=0.05):
     rejected = p_adj <= alpha
     return p_adj, rejected
 
-
 def main():
     unet = pd.read_csv(RESULTS_DIR / "unet_per_image.csv", index_col="case_id")
     nnunet = pd.read_csv(RESULTS_DIR / "nnunet_per_image.csv", index_col="case_id")
 
-    # Align on shared case IDs
     shared = unet.index.intersection(nnunet.index)
     print(f"Shared cases: {len(shared)}")
     unet = unet.loc[shared]
@@ -104,7 +101,6 @@ def main():
         u = unet[metric].values.astype(float)
         n = nnunet[metric].values.astype(float)
 
-        # Drop pairs where either value is NaN or inf
         mask = np.isfinite(u) & np.isfinite(n)
         u_clean = u[mask]
         n_clean = n[mask]
@@ -114,7 +110,7 @@ def main():
             continue
 
         diff = u_clean - n_clean
-        # Wilcoxon requires non-zero differences; if all differences are zero, p=1
+
         if np.all(diff == 0):
             stat, p = 0.0, 1.0
         else:
@@ -134,7 +130,6 @@ def main():
         raw_pvals.append(float(p))
         valid_metrics.append(metric)
 
-    # BH correction
     p_adj, rejected = bh_correction(raw_pvals, alpha=0.05)
     for i, row in enumerate(rows):
         row["p_adjusted_bh"] = float(p_adj[i])
@@ -155,7 +150,6 @@ def main():
     df.to_csv(out_csv, index=False)
     print(f"\nSaved: {out_csv}")
 
-    # Summary
     sig = df[df["significant_bh005"]]
     summary = {
         "n_metrics_tested": len(df),
@@ -169,7 +163,6 @@ def main():
         json.dump(summary, f, indent=2)
     print(f"Saved: {out_json}")
 
-    # Print readable table
     print("\n=== STATISTICAL RESULTS ===")
     print(f"{'Metric':<30} {'mean U-Net':>12} {'mean nnU-Net':>13} {'p_adj':>10} {'Sig':>5} {'Better':>8}")
     print("-" * 85)
@@ -179,7 +172,6 @@ def main():
             f" {row['p_adjusted_bh']:>10.4f} {'*' if row['significant_bh005'] else '':>5}"
             f" {row['better_model']:>8}"
         )
-
 
 if __name__ == "__main__":
     main()

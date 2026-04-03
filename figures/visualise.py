@@ -27,14 +27,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import numpy as np
 import nibabel as nib
@@ -48,14 +46,41 @@ plt.rcParams.update({
     "axes.spines.right":  False,
     "figure.facecolor":   "white",
     "axes.facecolor":     "white",
+    "figure.titlesize":   26,
+    "axes.titlesize":     20,
+    "axes.labelsize":     17,
+    "legend.fontsize":    15,
+    "xtick.labelsize":    14,
+    "ytick.labelsize":    14,
 })
 
-CONFIG_DEFAULT = Path("/home/s2292949/dissertation_resplit/config.json")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+OLD_REPO_ROOT = Path("/home/s2292949/dissertation_resplit")
+CONFIG_DEFAULT = REPO_ROOT / "config.json"
+
+FIG_SUPTITLE_FS = 26
+PANEL_TITLE_FS = 20
+AXIS_TITLE_FS = 20
+AXIS_LABEL_FS = 17
+INFO_TEXT_FS = 15
+CORNER_METRICS_FS = 22
+ANNOTATION_FS = 15
+LEGEND_FS = 15
+SMALL_LEGEND_FS = 14
 
 # ── I/O helpers ───────────────────────────────────────────────────────────────
 
 def load_cfg(path: Path) -> Dict:
-    return json.loads(path.read_text())
+    cfg = json.loads(path.read_text())
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            p = Path(value)
+            try:
+                rel = p.relative_to(OLD_REPO_ROOT)
+            except ValueError:
+                continue
+            cfg["paths"][key] = str(REPO_ROOT / rel)
+    return cfg
 
 
 def load_nifti(path: Path) -> np.ndarray:
@@ -81,6 +106,10 @@ def load_probs_npz(path: Path) -> np.ndarray:
     else:
         fg = arr
     return np.clip(fg, 0.0, 1.0)
+
+
+def results_csv_path(results_dir: Path, stem: str, suffix: str = "") -> Path:
+    return results_dir / f"{stem}{suffix}.csv"
 
 
 def maybe_T(arr: np.ndarray, target: Tuple[int, int]) -> np.ndarray:
@@ -227,13 +256,13 @@ def fig_training_panels(cfg: Dict, out_root: Path, model: str, n: int = 6) -> No
         dice = (2 * tp) / (2 * tp + fp + fn) if (2 * tp + fp + fn) > 0 else 0.0
 
         fig.suptitle(f"CEM-MitoLab  [{model.upper()}]  —  {case_id}",
-                     fontsize=13, fontweight="bold", y=0.97)
+                     fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.97)
         fig.text(0.5, 0.875,
                  f"shape={raw.shape[0]}×{raw.shape[1]}   "
                  f"GT fg={gt.mean()*100:.1f}%   "
                  f"pred fg={pred.mean()*100:.1f}%   "
                  f"Dice={dice:.3f}",
-                 ha="center", fontsize=8, color="#555")
+                 ha="center", fontsize=INFO_TEXT_FS, color="#555")
 
         titles = ["Raw EM", "Ground Truth (binary)", "Prediction (binary)", "Error Map"]
         imgs   = [em, gt.astype(np.float32), pred.astype(np.float32), err]
@@ -243,7 +272,7 @@ def fig_training_panels(cfg: Dict, out_root: Path, model: str, n: int = 6) -> No
                 ax.imshow(img, cmap=cmap, vmin=0, vmax=1, interpolation="nearest")
             else:
                 ax.imshow(img, interpolation="nearest")
-            ax.set_title(title, fontsize=10, fontweight="bold", pad=7)
+            ax.set_title(title, fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
             ax.axis("off")
 
         # Error-map legend
@@ -252,7 +281,7 @@ def fig_training_panels(cfg: Dict, out_root: Path, model: str, n: int = 6) -> No
             mpatches.Patch(color=(0.07, 0.07, 0.07),     label="TN"),
             mpatches.Patch(color=(0.91, 0.30, 0.24),     label="FP"),
             mpatches.Patch(color=(0.20, 0.60, 0.86),     label="FN"),
-        ], loc="lower right", fontsize=7, framealpha=0.7, edgecolor="none",
+        ], loc="lower right", fontsize=SMALL_LEGEND_FS, framealpha=0.7, edgecolor="none",
            facecolor="white")
 
         out_path = out_dir / f"{case_id}_panel.png"
@@ -307,11 +336,11 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
         model_title = " vs ".join(m.upper().replace("NNUNET", "nnU-Net").replace("UNET", "U-Net")
                                     for m in active_models)
         fig.suptitle(f"Instance Evaluation  [{model_title}]  —  {case_id}",
-                     fontsize=13, fontweight="bold", y=0.97)
+                     fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.97)
 
         ax_idx = 0
         axes[ax_idx].imshow(em, cmap="gray", vmin=0, vmax=1, interpolation="nearest")
-        axes[ax_idx].set_title("Raw EM", fontsize=10, fontweight="bold", pad=7)
+        axes[ax_idx].set_title("Raw EM", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
         axes[ax_idx].axis("off")
         ax_idx += 1
 
@@ -322,19 +351,19 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
         fig_base.patch.set_facecolor("white")
         fig_base.subplots_adjust(left=0.01, right=0.99, top=0.82, bottom=0.02, wspace=0.05)
         fig_base.suptitle(f"Instance Evaluation  —  {case_id}",
-                          fontsize=13, fontweight="bold", y=0.97)
+                          fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.97)
 
         axes_base[0].imshow(em, cmap="gray", vmin=0, vmax=1, interpolation="nearest")
-        axes_base[0].set_title("Raw EM", fontsize=10, fontweight="bold", pad=7)
+        axes_base[0].set_title("Raw EM", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
         axes_base[0].axis("off")
 
         n_inst = int(np.unique(inst[inst > 0]).size)
         axes_base[1].imshow(inst_rgb, interpolation="nearest")
-        axes_base[1].set_title(f"GT Instances  ({n_inst} objects)", fontsize=10, fontweight="bold", pad=7)
+        axes_base[1].set_title(f"GT Instances  ({n_inst} objects)", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
         axes_base[1].axis("off")
 
         axes_base[2].imshow(gt_bin.astype(np.float32), cmap="gray", vmin=0, vmax=1, interpolation="nearest")
-        axes_base[2].set_title("GT Binary", fontsize=10, fontweight="bold", pad=7)
+        axes_base[2].set_title("GT Binary", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
         axes_base[2].axis("off")
 
         out_path_base = out_dir / f"{case_id}_instances.png"
@@ -342,7 +371,7 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
         plt.close(fig_base)
 
         axes[ax_idx].imshow(inst_rgb, interpolation="nearest")
-        axes[ax_idx].set_title(f"GT Instances  ({n_inst} objects)", fontsize=10, fontweight="bold", pad=7)
+        axes[ax_idx].set_title(f"GT Instances  ({n_inst} objects)", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
         axes[ax_idx].axis("off")
         ax_idx += 1
 
@@ -363,7 +392,7 @@ def fig_eval_instances(cfg: Dict, out_root: Path, n: int = 4,
             axes[ax_idx].imshow(pred_rgb, interpolation="nearest")
             axes[ax_idx].set_title(
                 f"{label}  ({n_pred} obj, Dice={dice:.3f})",
-                fontsize=10, fontweight="bold", pad=7)
+                fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
             axes[ax_idx].axis("off")
             ax_idx += 1
 
@@ -418,7 +447,7 @@ def fig_contour_overlap(cfg: Dict, out_root: Path, n: int = 4,
             axes = [axes]
         fig.patch.set_facecolor("white")
         fig.subplots_adjust(left=0.02, right=0.98, top=0.85, bottom=0.02, wspace=0.06)
-        fig.suptitle(f"Contour Overlap  —  {case_id}", fontsize=13, fontweight="bold", y=0.97)
+        fig.suptitle(f"Contour Overlap  —  {case_id}", fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.97)
 
         for ax, model in zip(axes, models_present):
             bin_path = find_pred_binary(case_id, cfg, model)
@@ -445,12 +474,12 @@ def fig_contour_overlap(cfg: Dict, out_root: Path, n: int = 4,
             fn = int((~pred & gt_bin).sum())
             dice = (2*tp) / (2*tp+fp+fn) if (2*tp+fp+fn) > 0 else 0.0
 
-            ax.set_title(f"{model.upper()} — Dice={dice:.3f}", fontsize=11, fontweight="bold", pad=7)
+            ax.set_title(f"{model.upper()} — Dice={dice:.3f}", fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
             ax.axis("off")
             ax.legend(handles=[
                 mpatches.Patch(color=(1.0, 0.85, 0.0), label="Pred contour"),
                 mpatches.Patch(color=(1.0, 1.0,  1.0), label="GT contour"),
-            ], loc="lower right", fontsize=8, framealpha=0.7, edgecolor="none", facecolor="#333")
+            ], loc="lower right", fontsize=LEGEND_FS, framealpha=0.7, edgecolor="none", facecolor="#333")
 
         out_path = out_dir / f"{case_id}_contour.png"
         plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
@@ -462,7 +491,14 @@ def fig_contour_overlap(cfg: Dict, out_root: Path, n: int = 4,
 # 4. Corner cases — high Dice but biological metric failure
 # ══════════════════════════════════════════════════════════════════════════════
 
-def fig_corner_cases(cfg: Dict, out_root: Path, results_dir: Path, n: int = 4) -> None:
+def fig_corner_cases(
+    cfg: Dict,
+    out_root: Path,
+    results_dir: Path,
+    n: int = 4,
+    results_suffix: str = "",
+    selected_cases: Optional[Dict[str, List[str]]] = None,
+) -> None:
     out_dir = out_root / "corner_cases"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -471,48 +507,67 @@ def fig_corner_cases(cfg: Dict, out_root: Path, results_dir: Path, n: int = 4) -
 
     found_any = False
     for model in ["unet", "nnunet"]:
-        csv_path = results_dir / f"{model}_per_image.csv"
+        csv_path = results_csv_path(results_dir, f"{model}_per_image", results_suffix)
+        corner_csv_path = results_csv_path(results_dir, f"{model}_corner_cases", results_suffix)
         if not csv_path.exists():
             print(f"  [corner_cases/{model}] {csv_path} not found — skipping")
             continue
 
         df = pd.read_csv(csv_path)
-        if "dice_fg" not in df.columns:
-            print(f"  [corner_cases/{model}] no dice_fg column — skipping")
-            continue
+        df_lookup = df.set_index("case_id", drop=False) if "case_id" in df.columns else None
+        requested_ids = (selected_cases or {}).get(model, [])
 
-        bio_cols = [c for c in ["merge_rate", "split_rate", "connectivity_error",
-                                 "obj_count_error", "pq_iou50"]
-                    if c in df.columns]
-        if not bio_cols:
-            print(f"  [corner_cases/{model}] no biological metric columns — skipping")
-            continue
-
-        df_clean = df.dropna(subset=["dice_fg"] + bio_cols)
-        if df_clean.empty:
-            continue
-
-        # Score: high Dice AND high connectivity_error (or low pq_iou50)
-        dice_thresh = df_clean["dice_fg"].quantile(0.60)
-        if "connectivity_error" in bio_cols:
-            bio_fail = df_clean["connectivity_error"] > df_clean["connectivity_error"].quantile(0.70)
-        elif "pq_iou50" in bio_cols:
-            bio_fail = df_clean["pq_iou50"] < df_clean["pq_iou50"].quantile(0.30)
+        if corner_csv_path.exists():
+            corners = pd.read_csv(corner_csv_path)
+            if requested_ids:
+                order = {case_id: idx for idx, case_id in enumerate(requested_ids)}
+                corners = corners[corners["case_id"].isin(requested_ids)].copy()
+                corners["__order"] = corners["case_id"].map(order)
+                corners = corners.sort_values("__order")
+            else:
+                corners = corners.head(n).copy()
         else:
-            bio_fail = df_clean[bio_cols[0]] > df_clean[bio_cols[0]].quantile(0.70)
+            if "dice_fg" not in df.columns:
+                print(f"  [corner_cases/{model}] no dice_fg column — skipping")
+                continue
 
-        high_dice = df_clean["dice_fg"] >= dice_thresh
-        corners = df_clean[high_dice & bio_fail].sort_values("dice_fg", ascending=False)
+            bio_cols = [c for c in ["merge_rate", "split_rate", "connectivity_error",
+                                     "obj_count_error", "pq_iou50"]
+                        if c in df.columns]
+            if not bio_cols:
+                print(f"  [corner_cases/{model}] no biological metric columns — skipping")
+                continue
+
+            df_clean = df.dropna(subset=["dice_fg"] + bio_cols)
+            if df_clean.empty:
+                continue
+
+            dice_thresh = df_clean["dice_fg"].quantile(0.60)
+            if "connectivity_error" in bio_cols:
+                bio_fail = df_clean["connectivity_error"] > df_clean["connectivity_error"].quantile(0.70)
+            elif "pq_iou50" in bio_cols:
+                bio_fail = df_clean["pq_iou50"] < df_clean["pq_iou50"].quantile(0.30)
+            else:
+                bio_fail = df_clean[bio_cols[0]] > df_clean[bio_cols[0]].quantile(0.70)
+
+            high_dice = df_clean["dice_fg"] >= dice_thresh
+            corners = df_clean[high_dice & bio_fail].sort_values("dice_fg", ascending=False)
+            if requested_ids:
+                order = {case_id: idx for idx, case_id in enumerate(requested_ids)}
+                corners = corners[corners["case_id"].isin(requested_ids)].copy()
+                corners["__order"] = corners["case_id"].map(order)
+                corners = corners.sort_values("__order")
+            else:
+                corners = corners.head(n).copy()
 
         if corners.empty:
-            print(f"  [corner_cases/{model}] no corner cases found with current thresholds")
+            print(f"  [corner_cases/{model}] no corner cases available for the requested selection")
             continue
 
         found_any = True
-        selected = corners.head(n)
-        print(f"  [corner_cases/{model}] {len(selected)} corner cases → {out_dir}")
+        print(f"  [corner_cases/{model}] {len(corners)} corner cases → {out_dir}")
 
-        for _, row in selected.iterrows():
+        for _, row in corners.iterrows():
             case_id = row["case_id"]
             raw_path  = img_dir / f"{case_id}_0000.nii.gz"
             inst_path = inst_dir / f"{case_id}_inst.nii.gz"
@@ -529,23 +584,28 @@ def fig_corner_cases(cfg: Dict, out_root: Path, results_dir: Path, n: int = 4) -
             em   = norm01(raw)
             err  = error_map_rgb(pred, gt)
 
-            fig, axes = plt.subplots(1, 4, figsize=(22, 6))
+            fig, axes = plt.subplots(1, 4, figsize=(18, 6.2))
             fig.patch.set_facecolor("white")
-            fig.subplots_adjust(left=0.01, right=0.99, top=0.74, bottom=0.02, wspace=0.04)
+            fig.subplots_adjust(left=0.01, right=0.99, top=0.78, bottom=0.02, wspace=0.04)
 
-            dice   = float(row["dice_fg"])
-            merges = int(row.get("merge_events", 0))
-            splits = int(row.get("split_events", 0))
-            conn_e = float(row.get("connectivity_error", 0.0))
-            pq     = float(row.get("pq_iou50", float("nan")))
+            dice = float(row["dice_fg"])
+            obj_err = float(row.get("obj_count_error", 0.0))
+            merge_rate = float(row.get("merge_rate", float("nan")))
+            split_rate = float(row.get("split_rate", float("nan")))
+            conn_e = float(row.get("connectivity_error", float("nan")))
+            pq = float(row.get("pq_iou50", float("nan")))
+            if df_lookup is not None and case_id in df_lookup.index:
+                full_row = df_lookup.loc[case_id]
+                conn_e = float(full_row.get("connectivity_error", conn_e))
+                pq = float(full_row.get("pq_iou50", pq))
 
             fig.suptitle(
                 f"Corner Case  [{model.upper()}]  —  {case_id}",
-                fontsize=13, fontweight="bold", y=0.98)
-            fig.text(0.5, 0.885,
-                     f"Dice={dice:.3f}   merges={merges}   splits={splits}   "
-                     f"conn_error={conn_e:.3f}   PQ@0.5={pq:.3f}",
-                     ha="center", fontsize=9, color="#c0392b", fontweight="bold")
+                fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.975)
+            fig.text(0.5, 0.875,
+                     f"Dice={dice:.3f}   count_error={obj_err:.0f}   "
+                     f"merge_rate={merge_rate:.3f}   split_rate={split_rate:.3f}",
+                     ha="center", fontsize=CORNER_METRICS_FS, color="#c0392b", fontweight="bold")
 
             inst_rgb = instance_colourmap(inst, bg_gray=raw)
             pred_inst, n_pred = scipy_label(pred, structure=np.ones((3, 3), np.uint8))
@@ -562,7 +622,7 @@ def fig_corner_cases(cfg: Dict, out_root: Path, results_dir: Path, n: int = 4) -
                     ax.imshow(img, cmap=cmap, vmin=0, vmax=1, interpolation="nearest")
                 else:
                     ax.imshow(img, interpolation="nearest")
-                ax.set_title(title, fontsize=10, fontweight="bold", pad=7)
+                ax.set_title(title, fontsize=PANEL_TITLE_FS, fontweight="bold", pad=7)
                 ax.axis("off")
 
             axes[3].legend(handles=[
@@ -570,23 +630,28 @@ def fig_corner_cases(cfg: Dict, out_root: Path, results_dir: Path, n: int = 4) -
                 mpatches.Patch(color=(0.07, 0.07, 0.07),  label=f"TN"),
                 mpatches.Patch(color=(0.91, 0.30, 0.24),  label=f"FP"),
                 mpatches.Patch(color=(0.20, 0.60, 0.86),  label=f"FN"),
-            ], loc="lower right", fontsize=7, framealpha=0.7, edgecolor="none", facecolor="white")
+            ], loc="lower right", fontsize=SMALL_LEGEND_FS, framealpha=0.7, edgecolor="none", facecolor="white")
 
-            out_path = out_dir / f"{model}_{case_id}_corner.png"
+            out_path = out_dir / f"{model}_{case_id}_corner{results_suffix}.png"
             plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
-            print(f"    {case_id}  Dice={dice:.3f}  conn_err={conn_e:.3f}  → {out_path.name}")
+            print(f"    {case_id}  Dice={dice:.3f}  obj_err={obj_err:.0f}  → {out_path.name}")
 
     if not found_any:
-        print("  [corner_cases] no per-image CSVs available yet — run evaluate.py first")
+        print("  [corner_cases] no per-image or corner-case CSVs available yet")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. Scatter plots — Dice vs each biological metric
 # ══════════════════════════════════════════════════════════════════════════════
 
-def fig_scatter(cfg: Dict, out_root: Path, results_dir: Path,
-                models: Optional[List[str]] = None) -> None:
+def fig_scatter(
+    cfg: Dict,
+    out_root: Path,
+    results_dir: Path,
+    models: Optional[List[str]] = None,
+    results_suffix: str = "",
+) -> None:
     out_dir = out_root / "scatter"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -612,7 +677,7 @@ def fig_scatter(cfg: Dict, out_root: Path, results_dir: Path,
 
     frames = {}
     for model in models:
-        csv_path = results_dir / f"{model}_per_image.csv"
+        csv_path = results_csv_path(results_dir, f"{model}_per_image", results_suffix)
         if csv_path.exists():
             frames[model] = pd.read_csv(csv_path)
 
@@ -630,9 +695,9 @@ def fig_scatter(cfg: Dict, out_root: Path, results_dir: Path,
 
     for col, ylabel in available_metrics:
         fig, ax = plt.subplots(figsize=(7, 5))
-        ax.set_title(f"Dice vs {ylabel}", fontsize=12, fontweight="bold", pad=10)
-        ax.set_xlabel("Dice (FG, t=0.5)", fontsize=10)
-        ax.set_ylabel(ylabel, fontsize=10)
+        ax.set_title(f"Dice vs {ylabel}", fontsize=AXIS_TITLE_FS, fontweight="bold", pad=10)
+        ax.set_xlabel("Dice (FG, t=0.5)", fontsize=AXIS_LABEL_FS)
+        ax.set_ylabel(ylabel, fontsize=AXIS_LABEL_FS)
 
         for model, df in frames.items():
             if "dice_fg" not in df.columns or col not in df.columns:
@@ -649,10 +714,10 @@ def fig_scatter(cfg: Dict, out_root: Path, results_dir: Path,
             if len(sub) >= 3:
                 corr = sub["dice_fg"].corr(sub[col])
                 ax.annotate(f"r={corr:.2f}", xy=(0.03, 0.97 - list(frames).index(model) * 0.07),
-                            xycoords="axes fraction", fontsize=8,
+                            xycoords="axes fraction", fontsize=ANNOTATION_FS,
                             color=style["color"], va="top")
 
-        ax.legend(fontsize=9, framealpha=0.5)
+        ax.legend(fontsize=LEGEND_FS, framealpha=0.5)
         plt.tight_layout()
         out_path = out_dir / f"scatter_dice_vs_{col}.png"
         plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
@@ -664,8 +729,13 @@ def fig_scatter(cfg: Dict, out_root: Path, results_dir: Path,
 # 6. Threshold sensitivity curves
 # ══════════════════════════════════════════════════════════════════════════════
 
-def fig_threshold_curves(cfg: Dict, out_root: Path, results_dir: Path,
-                          models: Optional[List[str]] = None) -> None:
+def fig_threshold_curves(
+    cfg: Dict,
+    out_root: Path,
+    results_dir: Path,
+    models: Optional[List[str]] = None,
+    results_suffix: str = "",
+) -> None:
     out_dir = out_root / "threshold_curves"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -693,7 +763,7 @@ def fig_threshold_curves(cfg: Dict, out_root: Path, results_dir: Path,
 
     frames = {}
     for model in models:
-        csv_path = results_dir / f"{model}_per_image.csv"
+        csv_path = results_csv_path(results_dir, f"{model}_per_image", results_suffix)
         if csv_path.exists():
             frames[model] = pd.read_csv(csv_path)
 
@@ -707,7 +777,7 @@ def fig_threshold_curves(cfg: Dict, out_root: Path, results_dir: Path,
     n_metrics = len(metric_groups)
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     axes = axes.ravel()
-    fig.suptitle("Threshold Sensitivity", fontsize=14, fontweight="bold", y=0.99)
+    fig.suptitle("Threshold Sensitivity", fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=0.99)
 
     for ax, (metric_name, col_names) in zip(axes, metric_groups):
         for model, df in frames.items():
@@ -726,11 +796,11 @@ def fig_threshold_curves(cfg: Dict, out_root: Path, results_dir: Path,
                             means.values + stds.values,
                             color=style["color"], alpha=0.15)
 
-        ax.set_title(metric_name, fontsize=10, fontweight="bold")
-        ax.set_xlabel("Threshold", fontsize=9)
+        ax.set_title(metric_name, fontsize=AXIS_TITLE_FS, fontweight="bold")
+        ax.set_xlabel("Threshold", fontsize=AXIS_LABEL_FS)
         ax.set_xticks(thresholds)
         ax.set_xlim(thresholds[0] - 0.03, thresholds[-1] + 0.03)
-        ax.legend(fontsize=8, framealpha=0.5)
+        ax.legend(fontsize=LEGEND_FS, framealpha=0.5)
         ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
@@ -768,14 +838,19 @@ def _parse_unet_log(log_path: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def fig_dice_distribution(cfg: Dict, out_root: Path, results_dir: Path,
-                          models: Optional[List[str]] = None) -> None:
+def fig_dice_distribution(
+    cfg: Dict,
+    out_root: Path,
+    results_dir: Path,
+    models: Optional[List[str]] = None,
+    results_suffix: str = "",
+) -> None:
     if models is None:
         models = ["unet", "nnunet"]
 
     frames: Dict[str, pd.DataFrame] = {}
     for model in models:
-        csv_path = results_dir / f"{model}_per_image.csv"
+        csv_path = results_csv_path(results_dir, f"{model}_per_image", results_suffix)
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             if "dice_fg" in df.columns:
@@ -793,19 +868,19 @@ def fig_dice_distribution(cfg: Dict, out_root: Path, results_dir: Path,
     fig, axes = plt.subplots(1, len(frames), figsize=(7 * len(frames), 4.8), sharey=True)
     if len(frames) == 1:
         axes = [axes]
-    fig.suptitle("Foreground Dice Distribution", fontsize=13, fontweight="bold", y=1.02)
+    fig.suptitle("Foreground Dice Distribution", fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=1.02)
 
     for ax, model in zip(axes, frames.keys()):
         dice = frames[model]["dice_fg"].dropna().to_numpy(dtype=float)
         ax.hist(dice, bins=bins, color=colors[model], alpha=0.85, edgecolor="white", linewidth=0.5)
         ax.axvline(np.mean(dice), color="#111111", linestyle="--", linewidth=1.4, label=f"mean={np.mean(dice):.3f}")
         ax.axvline(np.median(dice), color="#666666", linestyle=":", linewidth=1.4, label=f"median={np.median(dice):.3f}")
-        ax.set_title(labels[model], fontsize=11, fontweight="bold")
-        ax.set_xlabel("Foreground Dice")
-        ax.set_ylabel("Number of slices")
+        ax.set_title(labels[model], fontsize=AXIS_TITLE_FS, fontweight="bold")
+        ax.set_xlabel("Foreground Dice", fontsize=AXIS_LABEL_FS)
+        ax.set_ylabel("Number of slices", fontsize=AXIS_LABEL_FS)
         ax.set_xlim(0, 1)
         ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=LEGEND_FS)
 
     plt.tight_layout()
     out_path = out_root / "dice_distribution.png"
@@ -815,7 +890,7 @@ def fig_dice_distribution(cfg: Dict, out_root: Path, results_dir: Path,
 
     # Overlay histogram for direct comparison
     fig, ax = plt.subplots(figsize=(10, 5.2))
-    fig.suptitle("Foreground Dice Distribution Overlay", fontsize=13, fontweight="bold", y=1.02)
+    fig.suptitle("Foreground Dice Distribution Overlay", fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=1.02)
 
     for model in frames.keys():
         dice = frames[model]["dice_fg"].dropna().to_numpy(dtype=float)
@@ -826,11 +901,11 @@ def fig_dice_distribution(cfg: Dict, out_root: Path, results_dir: Path,
         ax.axvline(np.mean(dice), color=colors[model], linestyle="--", linewidth=1.5,
                    label=f"{labels[model]} mean={np.mean(dice):.3f}")
 
-    ax.set_xlabel("Foreground Dice")
-    ax.set_ylabel("Density")
+    ax.set_xlabel("Foreground Dice", fontsize=AXIS_LABEL_FS)
+    ax.set_ylabel("Density", fontsize=AXIS_LABEL_FS)
     ax.set_xlim(0, 1)
     ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
-    ax.legend(fontsize=8, ncol=2)
+    ax.legend(fontsize=LEGEND_FS, ncol=2)
     plt.tight_layout()
     out_path = out_root / "dice_distribution_overlay.png"
     plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
@@ -918,14 +993,14 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 9))
     fig.suptitle("Training Convergence  —  U-Net vs nnU-Net",
-                 fontsize=14, fontweight="bold", y=1.01)
+                 fontsize=FIG_SUPTITLE_FS, fontweight="bold", y=1.01)
 
     UNET_C   = "#2980b9"
     NNUNET_C = "#e74c3c"
 
     # ── top-left: train loss ─────────────────────────────────────────────────
     ax = axes[0, 0]
-    ax.set_title("Training Loss", fontsize=11, fontweight="bold")
+    ax.set_title("Training Loss", fontsize=AXIS_TITLE_FS, fontweight="bold")
     if unet_df is not None and "train_loss" in unet_df:
         ax.plot(unet_df["epoch"], unet_df["train_loss"],
                 color=UNET_C, linewidth=1.5, label="U-Net")
@@ -933,12 +1008,14 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
         nn_tr = nnunet_df.dropna(subset=["train_loss"])
         ax.plot(nn_tr["epoch"], nn_tr["train_loss"],
                 color=NNUNET_C, linewidth=1.5, label="nnU-Net")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Loss")
-    ax.legend(fontsize=9); ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+    ax.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+    ax.set_ylabel("Loss", fontsize=AXIS_LABEL_FS)
+    ax.legend(fontsize=LEGEND_FS)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
     # ── top-right: val loss ──────────────────────────────────────────────────
     ax = axes[0, 1]
-    ax.set_title("Validation Loss", fontsize=11, fontweight="bold")
+    ax.set_title("Validation Loss", fontsize=AXIS_TITLE_FS, fontweight="bold")
     if unet_df is not None:
         val_u = unet_df.dropna(subset=["val_loss"])
         ax.plot(val_u["epoch"], val_u["val_loss"],
@@ -947,12 +1024,14 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
         val_n = nnunet_df.dropna(subset=["val_loss"])
         ax.plot(val_n["epoch"], val_n["val_loss"],
                 color=NNUNET_C, linewidth=1.5, label="nnU-Net")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Loss")
-    ax.legend(fontsize=9); ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+    ax.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+    ax.set_ylabel("Loss", fontsize=AXIS_LABEL_FS)
+    ax.legend(fontsize=LEGEND_FS)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
     # ── bottom-left: train dice / pseudo dice ────────────────────────────────
     ax = axes[1, 0]
-    ax.set_title("Training Dice", fontsize=11, fontweight="bold")
+    ax.set_title("Training Dice", fontsize=AXIS_TITLE_FS, fontweight="bold")
     if unet_df is not None and "train_dice" in unet_df:
         ax.plot(unet_df["epoch"], unet_df["train_dice"],
                 color=UNET_C, linewidth=1.5, label="U-Net train Dice")
@@ -960,13 +1039,15 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
         nn_pd = nnunet_df.dropna(subset=["pseudo_dice"])
         ax.plot(nn_pd["epoch"], nn_pd["pseudo_dice"],
                 color=NNUNET_C, linewidth=1.5, label="nnU-Net pseudo Dice")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Dice")
+    ax.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+    ax.set_ylabel("Dice", fontsize=AXIS_LABEL_FS)
     ax.set_ylim(bottom=0.0)
-    ax.legend(fontsize=9); ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+    ax.legend(fontsize=LEGEND_FS)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
     # ── bottom-right: val dice ───────────────────────────────────────────────
     ax = axes[1, 1]
-    ax.set_title("Validation Dice", fontsize=11, fontweight="bold")
+    ax.set_title("Validation Dice", fontsize=AXIS_TITLE_FS, fontweight="bold")
     if unet_df is not None:
         val_ud = unet_df.dropna(subset=["val_dice"])
         ax.plot(val_ud["epoch"], val_ud["val_dice"],
@@ -977,9 +1058,11 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
         ax.plot(nn_vd["epoch"], nn_vd["pseudo_dice"],
                 color=NNUNET_C, linewidth=1.5, linestyle="--",
                 label="nnU-Net pseudo Dice (val)")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Dice")
+    ax.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+    ax.set_ylabel("Dice", fontsize=AXIS_LABEL_FS)
     ax.set_ylim(bottom=0.0)
-    ax.legend(fontsize=9); ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+    ax.legend(fontsize=LEGEND_FS)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
     out_path = out_dir / "convergence.png"
@@ -992,7 +1075,8 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
         if df is None:
             continue
         fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-        fig2.suptitle(f"Convergence  —  {model_name.upper()}", fontsize=12, fontweight="bold")
+        fig2.suptitle(f"Convergence  —  {model_name.upper()}",
+                      fontsize=FIG_SUPTITLE_FS, fontweight="bold")
 
         if "train_loss" in df:
             ax1.plot(df["epoch"], df["train_loss"], color=color, linewidth=1.5, label="train")
@@ -1000,7 +1084,10 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
             vl = df.dropna(subset=["val_loss"])
             ax1.plot(vl["epoch"], vl["val_loss"], color=color, linewidth=1.5,
                      linestyle="--", label="val")
-        ax1.set_title("Loss"); ax1.set_xlabel("Epoch"); ax1.legend(fontsize=9)
+        ax1.set_title("Loss", fontsize=AXIS_TITLE_FS, fontweight="bold")
+        ax1.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+        ax1.set_ylabel("Loss", fontsize=AXIS_LABEL_FS)
+        ax1.legend(fontsize=LEGEND_FS)
         ax1.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
         dice_col = "train_dice" if model_name == "unet" else "pseudo_dice"
@@ -1011,8 +1098,11 @@ def fig_convergence(cfg: Dict, out_root: Path, logs_dir: Path) -> None:
             vd = df.dropna(subset=["val_dice"])
             ax2.plot(vd["epoch"], vd["val_dice"], color=color, linewidth=1.5,
                      linestyle="--", label="val Dice")
-        ax2.set_title("Dice"); ax2.set_xlabel("Epoch")
-        ax2.set_ylim(bottom=0.0); ax2.legend(fontsize=9)
+        ax2.set_title("Dice", fontsize=AXIS_TITLE_FS, fontweight="bold")
+        ax2.set_xlabel("Epoch", fontsize=AXIS_LABEL_FS)
+        ax2.set_ylabel("Dice", fontsize=AXIS_LABEL_FS)
+        ax2.set_ylim(bottom=0.0)
+        ax2.legend(fontsize=LEGEND_FS)
         ax2.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
 
         plt.tight_layout()
@@ -1053,6 +1143,10 @@ def parse_args() -> argparse.Namespace:
                     help="Number of sample images for panel figures.")
     ap.add_argument("--out",    type=Path, default=None,
                     help="Output root (default: figures_dir from config).")
+    ap.add_argument("--results-suffix", default="",
+                    help="Suffix for evaluation outputs, e.g. _final.")
+    ap.add_argument("--corner-case-case", action="append", default=[],
+                    help="Specific corner-case figure to render, in model:case_id format.")
     return ap.parse_args()
 
 
@@ -1067,6 +1161,12 @@ def main() -> None:
 
     modes  = ALL_MODES if "all" in args.mode else args.mode
     active_models = ["unet", "nnunet"] if args.model == "both" else [args.model]
+    selected_corner_cases: Dict[str, List[str]] = {}
+    for item in args.corner_case_case:
+        if ":" not in item:
+            raise ValueError(f"Invalid --corner-case-case value: {item}")
+        model, case_id = item.split(":", 1)
+        selected_corner_cases.setdefault(model, []).append(case_id)
 
     print(f"Output root : {out_root}")
     print(f"Modes       : {modes}")
@@ -1074,7 +1174,9 @@ def main() -> None:
     print()
 
     if "dice_distribution" in modes:
-        fig_dice_distribution(cfg, out_root, results_dir, models=active_models)
+        fig_dice_distribution(
+            cfg, out_root, results_dir, models=active_models, results_suffix=args.results_suffix
+        )
 
     if "training_panels" in modes:
         for m in active_models:
@@ -1087,13 +1189,24 @@ def main() -> None:
         fig_contour_overlap(cfg, out_root, n=args.n, models=active_models)
 
     if "corner_cases" in modes:
-        fig_corner_cases(cfg, out_root, results_dir, n=args.n)
+        fig_corner_cases(
+            cfg,
+            out_root,
+            results_dir,
+            n=args.n,
+            results_suffix=args.results_suffix,
+            selected_cases=selected_corner_cases,
+        )
 
     if "scatter" in modes:
-        fig_scatter(cfg, out_root, results_dir, models=active_models)
+        fig_scatter(
+            cfg, out_root, results_dir, models=active_models, results_suffix=args.results_suffix
+        )
 
     if "threshold_curves" in modes:
-        fig_threshold_curves(cfg, out_root, results_dir, models=active_models)
+        fig_threshold_curves(
+            cfg, out_root, results_dir, models=active_models, results_suffix=args.results_suffix
+        )
 
     if "convergence" in modes:
         fig_convergence(cfg, out_root, logs_dir)

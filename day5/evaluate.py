@@ -31,25 +31,21 @@ from scipy.optimize import linear_sum_assignment
 
 try:
     from tqdm import tqdm
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:
     tqdm = None
-
 
 def _progress(iterable, **kwargs):
     if tqdm is None:
         return iterable
     return tqdm(iterable, **kwargs)
 
-
 def threshold_tag(threshold: float) -> str:
     return f"t{int(round(threshold * 100)):02d}"
-
 
 def safe_div(num: float, den: float) -> float:
     if den == 0:
         return 0.0
     return float(num / den)
-
 
 def load_nifti_array(path: Path) -> np.ndarray:
     array = nib.load(str(path)).get_fdata()
@@ -57,14 +53,12 @@ def load_nifti_array(path: Path) -> np.ndarray:
         array = array[:, :, 0]
     return np.asarray(array)
 
-
 def maybe_transpose_to_match(array: np.ndarray, target_shape: Tuple[int, int], name: str) -> np.ndarray:
     if tuple(array.shape) == tuple(target_shape):
         return array
     if tuple(array.T.shape) == tuple(target_shape):
         return array.T
     raise ValueError(f"{name} shape {array.shape} cannot be aligned to target shape {target_shape}.")
-
 
 def align_prob_to_binary(prob_fg: np.ndarray, pred_binary: np.ndarray, threshold: float) -> np.ndarray:
     """Fix transposition for square images.
@@ -79,7 +73,7 @@ def align_prob_to_binary(prob_fg: np.ndarray, pred_binary: np.ndarray, threshold
     already handles them correctly via shape comparison.
     """
     if prob_fg.shape[0] != prob_fg.shape[1]:
-        return prob_fg  # non-square: already handled by maybe_transpose_to_match
+        return prob_fg
     pred_ref = pred_binary.astype(bool)
     thr_orig = (prob_fg >= threshold)
     thr_T    = (prob_fg.T >= threshold)
@@ -88,7 +82,6 @@ def align_prob_to_binary(prob_fg: np.ndarray, pred_binary: np.ndarray, threshold
     if agree_T > agree:
         return np.ascontiguousarray(prob_fg.T)
     return prob_fg
-
 
 def extract_probabilities(npz_path: Path) -> np.ndarray:
     data = np.load(npz_path)
@@ -101,7 +94,7 @@ def extract_probabilities(npz_path: Path) -> np.ndarray:
 
     arr = np.asarray(arr, dtype=np.float32)
     if arr.ndim == 4:
-        # Expected nnU-Net format: [C, Z, H, W]
+
         if arr.shape[0] >= 2:
             fg = arr[1, 0]
         elif arr.shape[1] >= 2:
@@ -122,7 +115,6 @@ def extract_probabilities(npz_path: Path) -> np.ndarray:
 
     return np.clip(fg.astype(np.float32), 0.0, 1.0)
 
-
 def confusion_counts(pred: np.ndarray, target: np.ndarray) -> Tuple[int, int, int, int]:
     pred = pred.astype(bool)
     target = target.astype(bool)
@@ -131,7 +123,6 @@ def confusion_counts(pred: np.ndarray, target: np.ndarray) -> Tuple[int, int, in
     fp = int(np.logical_and(pred, ~target).sum())
     fn = int(np.logical_and(~pred, target).sum())
     return tp, tn, fp, fn
-
 
 def compute_hd95(pred: np.ndarray, target: np.ndarray, spacing: Tuple[float, float] = (1.0, 1.0)) -> float:
     pred = pred.astype(bool)
@@ -160,7 +151,6 @@ def compute_hd95(pred: np.ndarray, target: np.ndarray, spacing: Tuple[float, flo
         return float("inf")
     all_dist = np.concatenate([d_pred_to_target, d_target_to_pred])
     return float(np.percentile(all_dist, 95))
-
 
 def boundary_f1(pred: np.ndarray, target: np.ndarray, tolerance_px: int) -> float:
     pred = pred.astype(bool)
@@ -192,21 +182,18 @@ def boundary_f1(pred: np.ndarray, target: np.ndarray, tolerance_px: int) -> floa
         return 0.0
     return float(2 * precision * recall / (precision + recall))
 
-
 def voxel_metrics(pred: np.ndarray, target: np.ndarray) -> Dict[str, float]:
     pred = pred.astype(bool)
     target = target.astype(bool)
 
-    # Standard empty-set convention: if both foreground masks are empty,
-    # the foreground prediction is perfect rather than undefined.
     if pred.sum() == 0 and target.sum() == 0:
         return {
-            "dice_fg": 1.0,
+            "dice_fg": float("nan"),
             "dice_bg": 1.0,
-            "dice_mean": 1.0,
-            "iou": 1.0,
-            "precision": 1.0,
-            "recall": 1.0,
+            "dice_mean": float("nan"),
+            "iou": float("nan"),
+            "precision": float("nan"),
+            "recall": float("nan"),
         }
 
     tp, tn, fp, fn = confusion_counts(pred, target)
@@ -226,12 +213,8 @@ def voxel_metrics(pred: np.ndarray, target: np.ndarray) -> Dict[str, float]:
         "recall": recall,
     }
 
-
 def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
-    # Replace inf/-inf with NaN so that metrics like HD95 (which returns inf for
-    # fully missed/hallucinated cases) do not poison the mean and std.  The median
-    # is unaffected by inf in pandas, but normalising here keeps all statistics
-    # consistent.  The number of inf cases is preserved in the per-image CSV.
+
     numeric_df = df.select_dtypes(include=[np.number]).replace([np.inf, -np.inf], np.nan)
     return pd.DataFrame({
         "mean": numeric_df.mean(numeric_only=True),
@@ -242,7 +225,6 @@ def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
         "min": numeric_df.min(numeric_only=True),
         "max": numeric_df.max(numeric_only=True),
     })
-
 
 def expected_calibration_error(prob_fg: np.ndarray, target: np.ndarray, n_bins: int = 15) -> float:
     target_bool = target.astype(bool).ravel()
@@ -267,30 +249,16 @@ def expected_calibration_error(prob_fg: np.ndarray, target: np.ndarray, n_bins: 
         ece += float(in_bin.mean()) * abs(bin_acc - bin_conf)
     return float(ece)
 
-
 def compute_object_metrics(
     pred_binary: np.ndarray,
     gt_instance: np.ndarray,
     iou_thresholds: Sequence[float],
-    min_object_size_px: int = 0,
 ) -> Dict[str, float]:
     pred_binary = pred_binary.astype(bool)
     gt_instance = gt_instance.astype(np.int32)
 
     structure = np.ones((3, 3), dtype=np.uint8)
     pred_labeled, n_pred = label(pred_binary, structure=structure)
-
-    # Remove predicted objects smaller than min_object_size_px (noise filtering).
-    if min_object_size_px > 0 and n_pred > 0:
-        filtered = np.zeros_like(pred_labeled)
-        new_id = 0
-        for obj_id in range(1, n_pred + 1):
-            mask = pred_labeled == obj_id
-            if mask.sum() >= min_object_size_px:
-                new_id += 1
-                filtered[mask] = new_id
-        pred_labeled = filtered
-        n_pred = new_id
     gt_ids = np.unique(gt_instance)
     gt_ids = gt_ids[gt_ids > 0]
     n_gt = int(gt_ids.size)
@@ -359,12 +327,9 @@ def compute_object_metrics(
     valid_union = unions > 0
     iou_matrix[valid_union] = intersections[valid_union] / unions[valid_union]
 
-    # Hungarian one-to-one matching maximizing IoU
     row_idx, col_idx = linear_sum_assignment(1.0 - iou_matrix)
     matched_iou = iou_matrix[row_idx, col_idx]
-    # Only count pairs that actually overlap (IoU > 0).  When n_pred < n_gt the
-    # Hungarian algorithm is forced to assign some GT objects to non-overlapping
-    # predictions (IoU = 0); including those zeros would suppress the mean.
+
     real_matches = matched_iou[matched_iou > 0]
     matched_iou_mean = float(real_matches.mean()) if real_matches.size > 0 else 0.0
 
@@ -410,7 +375,6 @@ def compute_object_metrics(
 
     return out
 
-
 def resolve_prediction_dirs(
     model: str,
     cfg: Dict,
@@ -428,14 +392,13 @@ def resolve_prediction_dirs(
         probs_dir = probs_dir_override
     return binary_dir, probs_dir
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Unified per-image evaluation for U-Net and nnU-Net.")
     parser.add_argument("--model", required=True, choices=["unet", "nnunet"], help="Model name.")
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("/home/s2292949/dissertation_resplit/config.json"),
+        default=Path("/Users/mirakawar/Desktop/dissertation_resplit/config.json"),
         help="Path to config.json.",
     )
     parser.add_argument("--binary-dir", type=Path, default=None, help="Override binary prediction directory.")
@@ -444,7 +407,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("/home/s2292949/dissertation_resplit/evaluation/results"),
+        default=Path("/Users/mirakawar/Desktop/dissertation_resplit/evaluation/results"),
         help="Directory for output CSV/JSON files.",
     )
     parser.add_argument(
@@ -462,9 +425,6 @@ def parse_args() -> argparse.Namespace:
         help="IoU thresholds for object precision/recall.",
     )
     parser.add_argument("--ece-bins", type=int, default=15, help="Number of bins for ECE.")
-    parser.add_argument("--min-object-size", type=int, default=None,
-                        help="Minimum predicted object size in pixels for object-level metrics. "
-                             "Defaults to shared.min_object_size_px in config.json.")
     parser.add_argument("--limit", type=int, default=None, help="Optional case limit for smoke testing.")
     parser.add_argument(
         "--strict",
@@ -472,7 +432,6 @@ def parse_args() -> argparse.Namespace:
         help="Fail if any prediction files are missing; default is to skip missing cases.",
     )
     return parser.parse_args()
-
 
 def main() -> None:
     args = parse_args()
@@ -494,11 +453,6 @@ def main() -> None:
         thresholds.append(default_threshold)
         thresholds = sorted(thresholds)
 
-    if args.min_object_size is not None:
-        min_object_size_px = args.min_object_size
-    else:
-        min_object_size_px = int(cfg["shared"].get("min_object_size_px", 0))
-
     instance_files = sorted(instances_dir.glob("*_inst.nii.gz"))
     if args.limit is not None:
         instance_files = instance_files[: args.limit]
@@ -513,7 +467,6 @@ def main() -> None:
     print(f"  instances dir : {instances_dir}")
     print(f"  cases         : {len(instance_files)}")
     print(f"  thresholds    : {thresholds}")
-    print(f"  min obj size  : {min_object_size_px} px")
     print("=" * 72)
 
     rows: List[Dict[str, float]] = []
@@ -554,7 +507,6 @@ def main() -> None:
                 "pred_fg_pixels": int(pred_binary.sum()),
             }
 
-            # Voxel-level metrics across thresholds
             for thr in thresholds:
                 tag = threshold_tag(thr)
                 if prob_fg is not None:
@@ -600,14 +552,12 @@ def main() -> None:
 
             row["ece"] = expected_calibration_error(prob_fg, gt_binary, n_bins=args.ece_bins) if prob_fg is not None else np.nan
 
-            # Object-level metrics at default threshold prediction
             if prob_fg is not None:
                 pred_for_objects = (prob_fg >= default_threshold).astype(np.uint8)
             else:
                 pred_for_objects = pred_binary
             row.update(compute_object_metrics(pred_for_objects, gt_instance,
-                                               iou_thresholds=args.obj_iou_thresholds,
-                                               min_object_size_px=min_object_size_px))
+                                               iou_thresholds=args.obj_iou_thresholds))
 
             rows.append(row)
         except Exception:
@@ -670,7 +620,6 @@ def main() -> None:
     print(f"  missing binary : {len(missing_binary)}")
     print(f"  missing probs  : {len(missing_probs)}")
     print(f"  failed cases   : {len(failed_cases)}")
-
 
 if __name__ == "__main__":
     main()

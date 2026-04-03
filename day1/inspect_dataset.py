@@ -27,11 +27,8 @@ from pathlib import Path
 from tifffile import imread
 from collections import defaultdict
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
 DATA_ROOT  = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
 OUTPUT_DIR = "/home/s2292949/dissertation_resplit/data"
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 def detect_mask_encoding(mask: np.ndarray):
     """
@@ -51,12 +48,11 @@ def detect_mask_encoding(mask: np.ndarray):
         return "0/255_semantic", 1, True, "mask is 0/255 — needs converting to 0/1"
 
     elif min(unique_vals) == 0 and max(unique_vals) <= 255 and len(unique_vals) > 2:
-        # ✓ Expected CEM-MitoLab format — instance labels
+
         return f"instance_{n_instances}_objects", n_instances, False, ""
 
     else:
         return f"unknown:{unique_vals}", 0, True, f"unexpected mask values {unique_vals}"
-
 
 def inspect_dataset(data_root: str, output_dir: str):
     data_root  = Path(data_root)
@@ -97,7 +93,6 @@ def inspect_dataset(data_root: str, output_dir: str):
             img  = imread(str(images_dir / fname))
             mask = imread(str(masks_dir  / fname))
 
-            # Shape check
             shape_match = img.shape == mask.shape
             if not shape_match:
                 issues.append(
@@ -105,12 +100,10 @@ def inspect_dataset(data_root: str, output_dir: str):
                     f"image {img.shape} vs mask {mask.shape}"
                 )
 
-            # Mask encoding
             encoding, n_inst, is_issue, issue_msg = detect_mask_encoding(mask)
             if is_issue:
                 issues.append(f"[{encoding.upper()}] {sample.name}/{fname}: {issue_msg}")
 
-            # Foreground stats (on binarised mask)
             mask_bin     = (mask > 0).astype(np.uint8)
             fg_pixels    = int(np.sum(mask_bin))
             total_pixels = int(mask.size)
@@ -131,7 +124,6 @@ def inspect_dataset(data_root: str, output_dir: str):
                 "shape_match":   shape_match,
             })
 
-    # ── Write inspection_report.csv ──────────────────────────────────────────
     csv_path = output_dir / "inspection_report.csv"
     if rows:
         with open(csv_path, "w", newline="") as f:
@@ -140,14 +132,12 @@ def inspect_dataset(data_root: str, output_dir: str):
             writer.writerows(rows)
         print(f"Inspection report saved → {csv_path}")
 
-    # ── Write inspection_summary.txt ─────────────────────────────────────────
     summary_path = output_dir / "inspection_summary.txt"
     with open(summary_path, "w") as f:
         f.write(f"DATASET INSPECTION SUMMARY\n{'='*50}\n\n")
         f.write(f"Total sample folders  : {len(sample_folders)}\n")
         f.write(f"Total slices inspected: {len(rows)}\n\n")
 
-        # Encoding breakdown
         encodings = defaultdict(int)
         for r in rows:
             encodings[r["mask_encoding"]] += 1
@@ -155,7 +145,6 @@ def inspect_dataset(data_root: str, output_dir: str):
         for enc, count in sorted(encodings.items()):
             f.write(f"  {enc}: {count} slices\n")
 
-        # Instance stats
         inst_counts = [r["n_instances"] for r in rows if r["n_instances"] > 0]
         if inst_counts:
             f.write(f"\nMitochondria instance counts (non-empty slices):\n")
@@ -165,21 +154,18 @@ def inspect_dataset(data_root: str, output_dir: str):
             f.write(f"  min per slice   : {min(inst_counts)}\n")
             f.write(f"  max per slice   : {max(inst_counts)}\n")
 
-        # Empty masks
         empty = [r for r in rows if r["is_empty"]]
         f.write(f"\nEmpty masks (no mitochondria): {len(empty)}\n")
-        for r in empty[:20]:   # cap at 20 to avoid huge files
+        for r in empty[:20]:
             f.write(f"  {r['sample']}/{r['filename']}\n")
         if len(empty) > 20:
             f.write(f"  ... and {len(empty) - 20} more\n")
 
-        # Shape mismatches
         mismatches = [r for r in rows if not r["shape_match"]]
         f.write(f"\nShape mismatches: {len(mismatches)}\n")
         for r in mismatches:
             f.write(f"  {r['sample']}/{r['filename']}: {r['image_shape']}\n")
 
-        # fg_ratio stats
         fg_ratios = [r["fg_ratio"] for r in rows if not r["is_empty"]]
         if fg_ratios:
             f.write(f"\nForeground ratio stats (non-empty slices only):\n")
@@ -188,7 +174,6 @@ def inspect_dataset(data_root: str, output_dir: str):
             f.write(f"  mean   : {np.mean(fg_ratios):.4f}\n")
             f.write(f"  median : {np.median(fg_ratios):.4f}\n")
 
-        # Issues
         f.write(f"\nAll issues found ({len(issues)}):\n")
         for issue in issues:
             f.write(f"  {issue}\n")
@@ -202,13 +187,11 @@ def inspect_dataset(data_root: str, output_dir: str):
     if len(issues) > 10:
         print(f"  ... and {len(issues) - 10} more (see inspection_summary.txt)")
 
-    # Quick stats to terminal
     inst_counts = [r["n_instances"] for r in rows if r["n_instances"] > 0]
     print(f"\nTotal slices     : {len(rows)}")
     print(f"Empty slices     : {sum(1 for r in rows if r['is_empty'])}")
     print(f"Total instances  : {sum(inst_counts)}")
     print(f"Mean inst/slice  : {np.mean(inst_counts):.2f}")
-
 
 if __name__ == "__main__":
     inspect_dataset(DATA_ROOT, OUTPUT_DIR)

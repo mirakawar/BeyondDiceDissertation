@@ -32,10 +32,8 @@ from torch.utils.data import DataLoader, Dataset
 
 WORKER_BASE_SEED = 0
 
-
 def _progress(iterable, **kwargs):
-    return iterable  # no progress bar — log once per epoch only
-
+    return iterable
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
@@ -44,9 +42,6 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-# ── Data loading ──────────────────────────────────────────────────────────────
 
 def load_b2nd(case_path: Path) -> Tuple[np.ndarray, np.ndarray]:
     """Load nnU-Net .b2nd file pair → (image H×W float32, mask H×W float32).
@@ -59,11 +54,9 @@ def load_b2nd(case_path: Path) -> Tuple[np.ndarray, np.ndarray]:
     mask = (np.array(blosc2.open(str(seg))[0, 0]) > 0).astype(np.float32)
     return img, mask
 
-
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return json.load(f)
-
 
 def load_fold0_split(split_path: Path) -> Tuple[List[str], List[str]]:
     if split_path.suffix == ".json":
@@ -83,7 +76,6 @@ def load_fold0_split(split_path: Path) -> Tuple[List[str], List[str]]:
         raise RuntimeError(f"Fold 0 in {split_path} is missing train/val keys")
 
     return list(fold0["train"]), list(fold0["val"])
-
 
 def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Path, Path]:
     """Return (train_ids, val_ids, test_ids, preproc_dir, split_source).
@@ -125,7 +117,6 @@ def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Pat
     train_ids = [c for c in train_all if (preproc_dir / f"{c}.b2nd").exists()]
     val_ids   = [c for c in val_all   if (preproc_dir / f"{c}.b2nd").exists()]
 
-    # ── test from id_map ──────────────────────────────────────────────────────
     id_map_path = Path(cfg["paths"]["nnunet_id_map"])
     with open(id_map_path) as f:
         id_map = json.load(f)
@@ -138,12 +129,10 @@ def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Pat
 
     return train_ids, val_ids, test_ids, preproc_dir, split_source
 
-
 def get_checkpoint_paths(config_path: Path) -> Tuple[Path, Path]:
     cfg = load_config(config_path)
     checkpoint_dir = Path(cfg["paths"]["unet_checkpoint"])
     return checkpoint_dir / "best_model.pt", checkpoint_dir / "last_checkpoint.pt"
-
 
 def compute_train_pos_weight(config_path: Path) -> float:
     cfg = load_config(config_path)
@@ -166,9 +155,6 @@ def compute_train_pos_weight(config_path: Path) -> float:
     if fg_pixels <= 0:
         raise RuntimeError("Computed zero foreground pixels for the active train split.")
     return bg_pixels / fg_pixels
-
-
-# ── Dataset ───────────────────────────────────────────────────────────────────
 
 class B2ndDataset(Dataset):
     """Loads nnU-Net preprocessed .b2nd files.
@@ -195,31 +181,31 @@ class B2ndDataset(Dataset):
         cid = self.case_ids[index]
         img, mask = load_b2nd(self.preproc_dir / f"{cid}.b2nd")
 
-        image_tensor = torch.from_numpy(img).unsqueeze(0)   # (1, H, W)
-        mask_tensor  = torch.from_numpy(mask).unsqueeze(0)  # (1, H, W)
+        image_tensor = torch.from_numpy(img).unsqueeze(0)
+        mask_tensor  = torch.from_numpy(mask).unsqueeze(0)
 
         if self.augment:
-            # Horizontal flip
+
             if random.random() < 0.5:
                 image_tensor = torch.flip(image_tensor, dims=[2])
                 mask_tensor  = torch.flip(mask_tensor,  dims=[2])
-            # Vertical flip
+
             if random.random() < 0.5:
                 image_tensor = torch.flip(image_tensor, dims=[1])
                 mask_tensor  = torch.flip(mask_tensor,  dims=[1])
-            # Rotation (90, 180, 270 degrees)
+
             if random.random() < 0.5:
                 k = random.randint(1, 3)
                 image_tensor = torch.rot90(image_tensor, k, dims=[1, 2])
                 mask_tensor  = torch.rot90(mask_tensor,  k, dims=[1, 2])
-            # Random brightness shift in z-score space.
+
             if random.random() < 0.3:
                 image_tensor = image_tensor + random.uniform(-0.2, 0.2)
-            # Random contrast around the per-image mean.
+
             if random.random() < 0.3:
                 mean = image_tensor.mean()
                 image_tensor = (image_tensor - mean) * random.uniform(0.8, 1.2) + mean
-            # Small additive Gaussian noise for robustness to EM intensity variation.
+
             if random.random() < 0.2:
                 image_tensor = image_tensor + torch.randn_like(image_tensor) * random.uniform(0.0, 0.08)
 
@@ -237,7 +223,6 @@ class B2ndDataset(Dataset):
             "path":           str(self.preproc_dir / f"{cid}.b2nd"),
         }
 
-
 def pad_collate_fn(batch: List[dict]) -> dict:
     max_h = max(s["image"].shape[-2] for s in batch)
     max_w = max(s["image"].shape[-1] for s in batch)
@@ -253,10 +238,6 @@ def pad_collate_fn(batch: List[dict]) -> dict:
         "original_shape": torch.stack([s["original_shape"] for s in batch]),
         "path":           [s["path"] for s in batch],
     }
-
-
-# ── Model ─────────────────────────────────────────────────────────────────────
-# Identical to train_unet_corrected_v2.py
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels, mid_channels=None):
@@ -275,7 +256,6 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.double_conv(x)
 
-
 class Down(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -286,7 +266,6 @@ class Down(nn.Module):
 
     def forward(self, x):
         return self.maxpool_conv(x)
-
 
 class Up(nn.Module):
     def __init__(self, in_channels, out_channels, bilinear=True):
@@ -306,7 +285,6 @@ class Up(nn.Module):
         x1 = F.pad(x1, [dx // 2, dx - dx // 2, dy // 2, dy - dy // 2])
         return self.conv(torch.cat([x2, x1], dim=1))
 
-
 class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -314,7 +292,6 @@ class OutConv(nn.Module):
 
     def forward(self, x):
         return self.conv(x)
-
 
 class UNet(nn.Module):
     def __init__(self, n_channels=1, n_classes=1, bilinear=True):
@@ -347,15 +324,10 @@ class UNet(nn.Module):
         x  = self.up4(x,  x1)
         return self.outc(x)
 
-
-# ── Loss functions ────────────────────────────────────────────────────────────
-# Identical to train_unet_corrected_v2.py
-
 def targets_to_class_indices(targets: Tensor) -> Tensor:
     if targets.ndim == 4 and targets.shape[1] == 1:
         targets = targets[:, 0]
     return targets.long()
-
 
 def nnunet_softmax_dice_loss(logits: Tensor, targets: Tensor, smooth: float = 1e-5) -> Tensor:
     """Match nnU-Net's CE path: softmax + batch Dice, excluding background."""
@@ -372,7 +344,6 @@ def nnunet_softmax_dice_loss(logits: Tensor, targets: Tensor, smooth: float = 1e
 
     dice = (2.0 * intersect + smooth) / (sum_gt + sum_pred + smooth).clamp_min(1e-8)
     return -dice.mean()
-
 
 class CombinedCEDiceLoss(nn.Module):
     """Cross-entropy + nnU-Net-style softmax Dice for label-map training."""
@@ -400,8 +371,7 @@ class CombinedBCEDiceLoss(nn.Module):
         self.register_buffer("pos_weight", torch.tensor(float(pos_weight)))
 
     def soft_dice_loss(self, logits, targets):
-        # Match nnU-Net's region-based binary Dice term:
-        # sigmoid activation, batch Dice over the whole batch, smooth=1e-5.
+
         probs = torch.sigmoid(logits)
         targets = targets.float()
         intersect = (probs * targets).sum(dtype=torch.float32)
@@ -415,7 +385,6 @@ class CombinedBCEDiceLoss(nn.Module):
             logits, targets, reduction="mean", pos_weight=self.pos_weight)
         dice = self.soft_dice_loss(logits, targets)
         return self.bce_weight * bce + self.dice_weight * dice
-
 
 class FocalDiceLoss(nn.Module):
     """Focal loss + Dice for severe class imbalance."""
@@ -447,10 +416,6 @@ class FocalDiceLoss(nn.Module):
         return (self.focal_weight * self.focal_loss(logits, targets)
                 + self.dice_weight * self.soft_dice_loss(logits, targets))
 
-
-# ── Metrics ───────────────────────────────────────────────────────────────────
-# Identical to train_unet_corrected_v2.py
-
 def compute_hd95(pred, target, spacing=(1.0, 1.0)):
     from scipy.ndimage import distance_transform_edt
     pb = (pred > 0.5).astype(np.uint8)
@@ -465,7 +430,6 @@ def compute_hd95(pred, target, spacing=(1.0, 1.0)):
     dt_target = distance_transform_edt(~target_border.astype(bool), sampling=spacing)
     return float(np.percentile(
         np.concatenate([dt_target[pred_border > 0], dt_pred[target_border > 0]]), 95))
-
 
 def hard_metric_sums(logits, masks, original_shapes, threshold=0.5):
     """Accumulate hard TP/FP/FN/TN like nnU-Net online evaluation.
@@ -500,7 +464,6 @@ def hard_metric_sums(logits, masks, original_shapes, threshold=0.5):
 
     return totals
 
-
 def summarise_hard_metrics(totals):
     eps = 1e-6
     tp = totals["tp"]
@@ -515,10 +478,6 @@ def summarise_hard_metrics(totals):
     hd95 = float(totals["hd95"] / totals["hd_n"]) if totals["hd_n"] else float("inf")
     return dice, precision, recall, f1, acc, hd95
 
-
-# ── Visualisation helpers ─────────────────────────────────────────────────────
-# Identical to train_unet_corrected_v2.py
-
 def _compose_sample_image(image, target, pred):
     image  = np.clip(image, 0.0, 1.0)
     target = (target > 0.5).astype(np.float32)
@@ -530,7 +489,6 @@ def _compose_sample_image(image, target, pred):
     blend[..., 0] = np.clip(blend[..., 0] + pred   * 0.5, 0, 1)
     blend[..., 1] = np.clip(blend[..., 1] + target * 0.5, 0, 1)
     return Image.fromarray((np.concatenate([base, tgt, prd, blend], axis=1)*255).astype(np.uint8))
-
 
 @torch.no_grad()
 def save_sample_predictions(model, loader, device, output_dir, epoch, max_samples, threshold=0.5):
@@ -552,7 +510,7 @@ def save_sample_predictions(model, loader, device, output_dir, epoch, max_sample
                 break
             h, w = batch["original_shape"][i]
             img  = images[i, 0, :h, :w].cpu().numpy()
-            # display-rescale from z-score for visualisation only
+
             lo, hi = img.min(), img.max()
             img_disp = (img - lo) / (hi - lo + 1e-8)
             tgt  = masks[i,  0, :h, :w].cpu().numpy()
@@ -562,7 +520,6 @@ def save_sample_predictions(model, loader, device, output_dir, epoch, max_sample
             composite.save(output_dir / f"epoch{epoch:03d}_{stem}.png")
             saved += 1
         break
-
 
 def plot_loss_curves(train_losses, val_losses, val_epochs, output_path):
     if not train_losses:
@@ -579,10 +536,6 @@ def plot_loss_curves(train_losses, val_losses, val_epochs, output_path):
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.legend(); plt.tight_layout()
     plt.savefig(output_path); plt.close()
-
-
-# ── Training / evaluation loops ───────────────────────────────────────────────
-# Identical to train_unet_corrected_v2.py
 
 def train_one_epoch(model, loader, optimizer, criterion, device, progress_desc=None):
     model.train()
@@ -605,7 +558,6 @@ def train_one_epoch(model, loader, optimizer, criterion, device, progress_desc=N
     dice, prec, rec, f1, acc, hd95 = summarise_hard_metrics(totals)
     return totals["loss"] / n, dice, prec, rec, f1, acc, hd95
 
-
 @torch.no_grad()
 def evaluate(model, loader, criterion, device, progress_desc=None):
     model.eval()
@@ -624,15 +576,11 @@ def evaluate(model, loader, criterion, device, progress_desc=None):
     dice, prec, rec, f1, acc, hd95 = summarise_hard_metrics(totals)
     return totals["loss"] / n, dice, prec, rec, f1, acc, hd95
 
-
 def dataloader_worker_init(worker_id):
     seed = WORKER_BASE_SEED + worker_id
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-
-
-# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -667,14 +615,10 @@ def parse_args():
                         default="loss_curve.png")
     return parser.parse_args()
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-
 def main():
     args = parse_args()
     set_seed(args.seed)
 
-    # Load splits and paths from config
     train_ids, val_ids, test_ids, preproc_dir, split_source = load_splits(args.config)
     best_checkpoint_path, last_checkpoint_path = get_checkpoint_paths(args.config)
     best_checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -692,7 +636,6 @@ def main():
     if not test_ids:
         print("Note  : no test .b2nd files are available; final test eval will be run via predict/evaluate scripts.")
 
-    # Datasets
     train_dataset = B2ndDataset(train_ids, preproc_dir,
                                 pad_factor=args.pad_factor, augment=args.augment)
     val_dataset   = B2ndDataset(val_ids,   preproc_dir,
@@ -719,13 +662,11 @@ def main():
     val_loader   = make_loader(val_dataset,   shuffle=False)
     test_loader  = make_loader(test_dataset,  shuffle=False)
 
-    # Model
     device = torch.device(args.device)
     model  = UNet(n_channels=1, n_classes=2).to(device)
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"Device    : {device}")
 
-    # Loss
     effective_pos_weight = None
     if args.loss_type in {"bce_dice", "focal_dice", "bce_only"}:
         effective_pos_weight = args.pos_weight
@@ -758,7 +699,6 @@ def main():
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", patience=3, factor=0.5)
 
-    # Resume
     start_epoch    = 1
     best_val_loss  = math.inf
     patience_counter = 0
@@ -800,19 +740,18 @@ def main():
     loss_plot_path = Path(args.loss_plot_path) if args.loss_plot_path else None
 
     early_stop_patience = 50
-    early_stop_delta     = 0.001   # min improvement to reset patience
+    early_stop_delta     = 0.001
 
-    # Training loop — identical to train_unet_corrected_v2.py
     for epoch in range(start_epoch, args.epochs + 1):
         do_val = (epoch % 2 == 0)
 
-        train_loss, train_dice, train_prec, train_rec, train_f1, train_acc, train_hd95 = \
+        train_loss, train_dice, train_prec, train_rec, train_f1, train_acc, train_hd95 =\
             train_one_epoch(model, train_loader, optimizer, criterion, device,
                             progress_desc=f"Epoch {epoch:03d} train")
         train_losses.append(train_loss)
 
         if do_val:
-            val_loss, val_dice, val_prec, val_rec, val_f1, val_acc, val_hd95 = \
+            val_loss, val_dice, val_prec, val_rec, val_f1, val_acc, val_hd95 =\
                 evaluate(model, val_loader, criterion, device,
                          progress_desc=f"Epoch {epoch:03d} val")
             scheduler.step(val_loss)
@@ -875,7 +814,6 @@ def main():
                   f"Best val_loss={best_val_loss:.4f}")
             break
 
-    # Load best checkpoint for test evaluation
     final_checkpoint_path = best_checkpoint_path if best_checkpoint_path.is_file() else last_checkpoint_path
     if final_checkpoint_path.is_file():
         ckpt = torch.load(final_checkpoint_path, map_location=device, weights_only=False)
@@ -890,7 +828,7 @@ def main():
         print("Run day4/predict_unet.py followed by day5/evaluate.py for held-out test results.\n")
         return
 
-    test_loss, test_dice, test_prec, test_rec, test_f1, test_acc, test_hd95 = \
+    test_loss, test_dice, test_prec, test_rec, test_f1, test_acc, test_hd95 =\
         evaluate(model, test_loader, criterion, device, progress_desc="Test")
 
     print(f"\n{'='*70}")
@@ -903,7 +841,6 @@ def main():
     print(f"  Accuracy:  {test_acc:.4f}")
     print(f"  HD95:      {test_hd95:.2f}")
     print(f"{'='*70}\n")
-
 
 if __name__ == "__main__":
     main()

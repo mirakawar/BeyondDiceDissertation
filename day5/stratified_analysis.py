@@ -16,12 +16,13 @@ Outputs to evaluation/results/:
 import json
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from pathlib import Path
 
-RESULTS_DIR = Path("/home/s2292949/dissertation_resplit/evaluation/results")
-ID_MAP_PATH = Path("/home/s2292949/dissertation_resplit/data/nnunet_id_map.json")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RESULTS_DIR = REPO_ROOT / "evaluation/results"
+ID_MAP_PATH = REPO_ROOT / "data/nnunet_id_map.json"
 
-# Key metrics to report in stratified tables
 KEY_METRICS = [
     "dice_fg_t50",
     "iou_t50",
@@ -39,7 +40,6 @@ KEY_METRICS = [
     "obj_recall_t50",
 ]
 
-
 def load_and_merge():
     """Load per-image results and attach metadata from id_map."""
     unet = pd.read_csv(RESULTS_DIR / "unet_per_image.csv")
@@ -48,7 +48,6 @@ def load_and_merge():
     with open(ID_MAP_PATH) as f:
         id_map = json.load(f)
 
-    # Build metadata dataframe
     meta_rows = []
     for case_id, info in id_map.items():
         if info["split"] == "test":
@@ -74,7 +73,6 @@ def load_and_merge():
 
     return unet, nnunet, meta
 
-
 def stratified_table(unet, nnunet, group_col, group_labels=None):
     """For each stratum, compute mean of key metrics for both models."""
     rows = []
@@ -95,16 +93,50 @@ def stratified_table(unet, nnunet, group_col, group_labels=None):
         rows.append(row)
     return pd.DataFrame(rows)
 
+def save_fg_quartile_plot(fg_table: pd.DataFrame) -> None:
+    """Save the foreground-density stratification plot."""
+    out_dir = REPO_ROOT / "figures" / "stratified"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_df = fg_table.copy()
+    x = np.arange(len(plot_df))
+    labels = ["Q1", "Q2", "Q3", "Q4"]
+
+    unet_c = "#c94c4c"
+    nnunet_c = "#4f79bd"
+
+    fig, axes = plt.subplots(1, 3, figsize=(13.6, 5.0))
+    metrics = [
+        ("dice_fg_t50_mean", "Foreground Dice", (0.35, 0.80)),
+        ("pq_iou50_mean", "Panoptic Quality", (0.25, 0.65)),
+        ("split_rate_mean", "Split Rate", (0.00, 0.25)),
+    ]
+
+    for ax, (metric, title, ylim) in zip(axes, metrics):
+        ax.plot(x, plot_df[f"unet_{metric}"], marker="o", linewidth=2.0,
+                markersize=6.5, color=unet_c, label="U-Net")
+        ax.plot(x, plot_df[f"nnunet_{metric}"], marker="o", linewidth=2.0,
+                markersize=6.5, color=nnunet_c, label="nnU-Net")
+        ax.set_title(title, fontsize=16, fontweight="bold")
+        ax.set_xticks(x, labels)
+        ax.set_ylim(*ylim)
+        ax.grid(axis="y", linestyle="--", linewidth=0.6, alpha=0.4)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+
+    axes[0].legend(frameon=False, fontsize=10, loc="lower right")
+    plt.tight_layout()
+    out_path = out_dir / "fg_density_quartiles.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"Saved: {out_path}")
 
 def main():
     print("Loading data...")
     unet, nnunet, meta = load_and_merge()
     print(f"  U-Net rows: {len(unet)}, nnU-Net rows: {len(nnunet)}")
 
-    # ----------------------------------------------------------------
-    # 1. Foreground ratio quartile (exclude empty slices)
-    # ----------------------------------------------------------------
-    non_empty_mask = unet["is_empty"] == False  # noqa: E712
+    non_empty_mask = unet["is_empty"] == False
     u_ne = unet[non_empty_mask].copy()
     n_ne = nnunet[non_empty_mask].copy()
 
@@ -116,7 +148,6 @@ def main():
 
     fg_table = stratified_table(u_ne, n_ne, "fg_quartile")
 
-    # Add quartile fg_ratio ranges
     bins = pd.qcut(u_ne["fg_ratio"], q=4, retbins=True)[1]
     fg_table["fg_ratio_range"] = [
         f"{bins[i]:.3f}–{bins[i+1]:.3f}" for i in range(4)
@@ -126,10 +157,8 @@ def main():
     fg_table.to_csv(out, index=False)
     print(f"\nSaved: {out}")
     _print_compact(fg_table, "FOREGROUND RATIO QUARTILE")
+    save_fg_quartile_plot(fg_table)
 
-    # ----------------------------------------------------------------
-    # 2. GT object count quartile (exclude empty slices)
-    # ----------------------------------------------------------------
     obj_quartiles = pd.qcut(u_ne["gt_objects"], q=4,
                             labels=["Q1 (few)", "Q2", "Q3", "Q4 (many)"],
                             duplicates="drop")
@@ -150,19 +179,12 @@ def main():
     print(f"\nSaved: {out}")
     _print_compact(obj_table, "GT OBJECT COUNT QUARTILE")
 
-    # ----------------------------------------------------------------
-    # 3. Sample type proxy (_3D / _2D / other)
-    # ----------------------------------------------------------------
     type_table = stratified_table(unet, nnunet, "sample_type")
     out = RESULTS_DIR / "stratified_sample_type.csv"
     type_table.to_csv(out, index=False)
     print(f"\nSaved: {out}")
     _print_compact(type_table, "SAMPLE TYPE (proxy for imaging modality)")
 
-    # ----------------------------------------------------------------
-    # Also: include ALL images (including empty) for FG quartile with
-    # a dedicated "empty" stratum
-    # ----------------------------------------------------------------
     unet["has_fg"] = ~unet["is_empty"]
     nnunet["has_fg"] = ~nnunet["is_empty"]
     empty_table = stratified_table(unet, nnunet, "has_fg",
@@ -171,7 +193,6 @@ def main():
     empty_table.to_csv(out, index=False)
     print(f"\nSaved: {out}")
 
-    # Summary JSON
     summary = {
         "stratifications": [
             "fg_quartile (non-empty slices only)",
@@ -187,7 +208,6 @@ def main():
         json.dump(summary, f, indent=2)
     print(f"\nSaved: {RESULTS_DIR}/stratified_summary.json")
 
-
 def _print_compact(df, title):
     """Print a compact readable version of key metrics."""
     print(f"\n=== {title} ===")
@@ -198,7 +218,6 @@ def _print_compact(df, title):
             "unet_split_rate_mean", "nnunet_split_rate_mean"]
     available = [c for c in cols if c in df.columns]
     print(df[available].to_string(index=False, float_format=lambda x: f"{x:.3f}"))
-
 
 if __name__ == "__main__":
     main()

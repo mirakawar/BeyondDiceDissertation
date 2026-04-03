@@ -20,9 +20,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-
-# ── loaders ──────────────────────────────────────────────────────────────────
-
 def load_b2nd(case_path: Path):
     import blosc2
     img  = np.array(blosc2.open(str(case_path))[0, 0], dtype=np.float32)
@@ -40,9 +37,6 @@ def green_overlay(img_disp, mask, alpha=0.5):
         rgb[mask] = (1-alpha)*rgb[mask] + alpha*np.array([0., 0.85, 0.3])
     return rgb
 
-
-# ── panel ─────────────────────────────────────────────────────────────────────
-
 def save_panel(idx, case_id, img, mask, meta, out_dir):
     d        = norm_display(img)
     h, w     = img.shape
@@ -56,7 +50,6 @@ def save_panel(idx, case_id, img, mask, meta, out_dir):
     fig.subplots_adjust(left=0.01, right=0.99, top=0.78,
                         bottom=0.02, wspace=0.04)
 
-    # ── title block (matches Image 2) ────────────────────────────────────────
     fig.suptitle(f"CEM-MitoLab Training Sample  —  {case_id}",
                  fontsize=13, fontweight="bold", fontfamily="monospace",
                  color="black", y=0.97)
@@ -65,14 +58,12 @@ def save_panel(idx, case_id, img, mask, meta, out_dir):
              f"FG={fg*100:.2f}%     instances={n_inst}     {h}×{w}px",
              ha="center", fontsize=8, fontfamily="monospace", color="#555")
 
-    # ── Panel 1: Original ────────────────────────────────────────────────────
     ax = axes[0]
     ax.imshow(d, cmap="gray", vmin=0, vmax=1)
     ax.set_title("Original EM Image", fontsize=10, fontweight="bold",
                  fontfamily="monospace", pad=7)
     ax.axis("off")
 
-    # ── Panel 2: GT overlay ──────────────────────────────────────────────────
     ax = axes[1]
     ax.imshow(green_overlay(d, mask))
     ax.set_title("Ground Truth  (Green)", fontsize=10, fontweight="bold",
@@ -81,14 +72,12 @@ def save_panel(idx, case_id, img, mask, meta, out_dir):
     ax.legend(handles=[mpatches.Patch(color=(0,.85,.3), label="Mitochondria")],
               loc="lower right", fontsize=7, framealpha=0.6, edgecolor="none")
 
-    # ── Panel 3: Binary mask ─────────────────────────────────────────────────
     ax = axes[2]
     ax.imshow(mask.astype(np.float32), cmap="gray", vmin=0, vmax=1)
     ax.set_title("Binary Mask", fontsize=10, fontweight="bold",
                  fontfamily="monospace", pad=7)
     ax.axis("off")
 
-    # ── Panel 4: Statistics ──────────────────────────────────────────────────
     ax = axes[3]
     ax.set_facecolor("#f7f7f7")
     ax.set_xlim(0,1); ax.set_ylim(0,1); ax.axis("off")
@@ -126,9 +115,6 @@ def save_panel(idx, case_id, img, mask, meta, out_dir):
     plt.close()
     print(f"  [{idx:03d}] {case_id:15s}  FG={fg:.4f}  "
           f"inst={str(n_inst):>3}  {h}×{w}  → {out_path.name}")
-
-
-# ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()

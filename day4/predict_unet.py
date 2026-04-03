@@ -37,9 +37,8 @@ from torch.utils.data import DataLoader, Dataset
 
 try:
     from tqdm import tqdm
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:
     tqdm = None
-
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
@@ -49,19 +48,16 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
 def _progress(iterable, **kwargs):
     if tqdm is None:
         return iterable
     return tqdm(iterable, **kwargs)
-
 
 def load_b2nd_image(case_path: Path) -> Tensor:
     import blosc2
 
     array = np.array(blosc2.open(str(case_path))[0, 0], dtype=np.float32)
     return torch.from_numpy(array).unsqueeze(0)
-
 
 def to_model_tensor(
     image: Image.Image,
@@ -97,7 +93,6 @@ def to_model_tensor(
     if array.ndim == 2:
         return torch.from_numpy(array).unsqueeze(0)
     return torch.from_numpy(array).permute(2, 0, 1)
-
 
 class InferenceDataset(Dataset):
     def __init__(
@@ -148,7 +143,6 @@ class InferenceDataset(Dataset):
             "source_type": source_type,
         }
 
-
 def collate_fn(batch: List[Dict[str, object]]) -> Dict[str, object]:
     max_h = max(sample["image"].shape[-2] for sample in batch)
     max_w = max(sample["image"].shape[-1] for sample in batch)
@@ -165,7 +159,6 @@ def collate_fn(batch: List[Dict[str, object]]) -> Dict[str, object]:
     case_ids = [sample["case_id"] for sample in batch]
     source_types = [sample["source_type"] for sample in batch]
     return {"image": images, "original_shape": shapes, "case_id": case_ids, "source_type": source_types}
-
 
 def load_case_records(
     id_map_path: Path,
@@ -222,13 +215,12 @@ def load_case_records(
         )
     return records
 
-
 def load_unet_model(checkpoint_path: Path, device: torch.device):
     project_root = Path(__file__).resolve().parents[1]
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-    from day4.train_unet import UNet  # import the exact model definition used in resplit training
+    from day4.train_unet import UNet
 
     try:
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -248,7 +240,6 @@ def load_unet_model(checkpoint_path: Path, device: torch.device):
     model.eval()
     return model, checkpoint.get("epoch"), n_classes
 
-
 def save_outputs(
     case_id: str,
     prob_fg: np.ndarray,
@@ -260,17 +251,14 @@ def save_outputs(
     prob_fg = prob_fg.astype(np.float32, copy=False)
     binary_hw = (prob_fg >= threshold).astype(np.uint8)
 
-    # Match Day 1 NIfTI orientation: [W, H, 1]
     binary_nii = binary_hw.T[:, :, np.newaxis]
     nib.save(nib.Nifti1Image(binary_nii, np.eye(4)), binary_dir / f"{case_id}.nii.gz")
 
-    # Match nnU-Net .npz convention: [C, Z, H, W]
     probabilities = np.stack([1.0 - prob_fg, prob_fg], axis=0)[:, np.newaxis, :, :]
     if compress_probs:
         np.savez_compressed(probs_dir / f"{case_id}.npz", probabilities=probabilities)
     else:
         np.savez(probs_dir / f"{case_id}.npz", probabilities=probabilities)
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run U-Net inference and save binary + probability outputs.")
@@ -345,7 +333,6 @@ def parse_args() -> argparse.Namespace:
         help="Write .npz probabilities without compression for faster IO.",
     )
     return parser.parse_args()
-
 
 def main() -> None:
     args = parse_args()
@@ -466,7 +453,6 @@ def main() -> None:
     print(f"  saved   : {total}")
     print(f"  skipped : {skipped}")
     print(f"  total   : {len(records)}")
-
 
 if __name__ == "__main__":
     main()

@@ -10,19 +10,6 @@
 #SBATCH --error=/home/s2292949/dissertation_resplit/logs/nnunet_fold0_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=s2292949@ed.ac.uk
-# =============================================================================
-# Day 3 — Train nnU-Net (fold 0 only)
-# =============================================================================
-# Uses the custom splits_final.json created in Day 1 which locks fold 0 to
-# our stratified train/val split. This ensures both models see identical data.
-#
-# Usage:
-#   bash train_nnunet_fold0.sh          # run interactively
-#   sbatch train_nnunet_fold0.sh        # submit to SLURM
-#
-# The --npz flag tells nnU-Net to save softmax probability maps alongside
-# binary predictions — required for ECE computation at evaluation time.
-# =============================================================================
 
 set -euo pipefail
 
@@ -34,7 +21,6 @@ echo "  Started : $(date)"
 echo "================================================================"
 echo ""
 
-# ── Environment ──────────────────────────────────────────────────────────────
 export PATH="$HOME/.local/bin:$PATH"
 export nnUNet_raw="/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
 export nnUNet_preprocessed="/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed"
@@ -46,7 +32,6 @@ export OMP_NUM_THREADS=2
 
 mkdir -p /home/s2292949/dissertation_resplit/logs
 
-# ── Verify prerequisites ─────────────────────────────────────────────────────
 echo "Checking prerequisites..."
 
 PLANS="$nnUNet_preprocessed/Dataset001_Mitochondria/nnUNetPlans.json"
@@ -86,11 +71,9 @@ import sys
 
 raw_json, preproc_json, id_map_json, active_splits_json = sys.argv[1:]
 
-
 def fail(message: str) -> None:
     print(f"ERROR: {message}")
     sys.exit(1)
-
 
 def load_fold0(path: str) -> tuple[list[str], list[str]]:
     with open(path) as f:
@@ -101,7 +84,6 @@ def load_fold0(path: str) -> tuple[list[str], list[str]]:
     if "train" not in fold0 or "val" not in fold0:
         fail(f"{path} fold 0 is missing train/val keys")
     return list(fold0["train"]), list(fold0["val"])
-
 
 raw_train, raw_val = load_fold0(raw_json)
 preproc_train, preproc_val = load_fold0(preproc_json)
@@ -126,7 +108,6 @@ expected_val = {
     for entry in active_splits["val"]
 }
 
-
 def case_ids_to_pairs(case_ids: list[str], split_name: str) -> set[tuple[str, str]]:
     pairs = set()
     for case_id in case_ids:
@@ -137,7 +118,6 @@ def case_ids_to_pairs(case_ids: list[str], split_name: str) -> set[tuple[str, st
             fail(f"{case_id} is tagged as split={meta.get('split')} in nnunet_id_map.json, expected {split_name}")
         pairs.add((meta["sample"], meta["filename"]))
     return pairs
-
 
 actual_train = case_ids_to_pairs(raw_train, "train")
 actual_val = case_ids_to_pairs(raw_val, "val")
@@ -162,24 +142,9 @@ PY
 echo "  ✓ nnUNetPlans.json found"
 echo ""
 
-# ── Check GPU ─────────────────────────────────────────────────────────────────
 echo "GPU status:"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader
 echo ""
-
-# ── Train fold 0 ──────────────────────────────────────────────────────────────
-# Flags:
-#   2d      — use the 2D configuration (auto-selected during preprocessing)
-#   0       — fold 0 only (our standardised split)
-#   --npz   — save softmax .npz files alongside binary predictions
-#             needed for ECE metric at evaluation time
-#   --c     — continue training if a checkpoint already exists
-#
-# nnU-Net will:
-#   - read splits_final.json to get train/val assignment for fold 0
-#   - apply its default augmentation pipeline
-#   - train for up to 1000 epochs with its own early stopping logic
-#   - save checkpoint_best.pth and checkpoint_final.pth
 
 echo "================================================================"
 echo "  Starting nnUNetv2_train"
@@ -198,7 +163,6 @@ echo "================================================================"
 if [ $EXIT_CODE -eq 0 ]; then
     echo "  ✓ Training complete : $(date)"
 
-    # Show checkpoint
     FOLD_DIR="$nnUNet_results/Dataset001_Mitochondria/nnUNetTrainer__nnUNetPlans__2d/fold_0"
     CKPT="$FOLD_DIR/checkpoint_final.pth"
     if [ -f "$CKPT" ]; then

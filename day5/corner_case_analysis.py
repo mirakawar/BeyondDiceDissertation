@@ -6,6 +6,7 @@ Definition (per model):
   Dice > dice_threshold
   AND at least one of:
     obj_count_error > obj_count_threshold
+    merge_rate      > merge_rate_threshold
     split_rate      > split_rate_threshold
 
 Outputs:
@@ -24,9 +25,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-
-DEFAULT_CONFIG = Path("/home/s2292949/dissertation_resplit/config.json")
-
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CONFIG = REPO_ROOT / "config.json"
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Corner-case analysis from per-image evaluation CSVs.")
@@ -62,6 +62,12 @@ def parse_args() -> argparse.Namespace:
         help="Object-count-error cutoff for a corner case.",
     )
     p.add_argument(
+        "--merge-rate-threshold",
+        type=float,
+        default=0.0,
+        help="Merge-rate cutoff for a corner case.",
+    )
+    p.add_argument(
         "--split-rate-threshold",
         type=float,
         default=0.0,
@@ -69,19 +75,17 @@ def parse_args() -> argparse.Namespace:
     )
     return p.parse_args()
 
-
 def required_columns() -> List[str]:
-    return ["case_id", "dice_fg", "obj_count_error", "split_rate"]
-
+    return ["case_id", "dice_fg", "obj_count_error", "merge_rate", "split_rate"]
 
 def load_config(path: Path) -> Dict:
     return json.loads(path.read_text())
-
 
 def analyze_model(
     df: pd.DataFrame,
     dice_threshold: float,
     obj_count_threshold: float,
+    merge_rate_threshold: float,
     split_rate_threshold: float,
 ) -> tuple[pd.DataFrame, Dict]:
     cols = required_columns()
@@ -100,15 +104,21 @@ def analyze_model(
             "corner_rate": 0.0,
             "dice_threshold": float(dice_threshold),
             "obj_count_threshold": float(obj_count_threshold),
+            "merge_rate_threshold": float(merge_rate_threshold),
             "split_rate_threshold": float(split_rate_threshold),
         }
         return work.iloc[0:0], summary
 
     work["high_dice"] = work["dice_fg"] > dice_threshold
     work["fail_obj_count_error"] = work["obj_count_error"] > obj_count_threshold
+    work["fail_merge_rate"] = work["merge_rate"] > merge_rate_threshold
     work["fail_split_rate"] = work["split_rate"] > split_rate_threshold
 
-    fail_any = work["fail_obj_count_error"] | work["fail_split_rate"]
+    fail_any = (
+        work["fail_obj_count_error"]
+        | work["fail_merge_rate"]
+        | work["fail_split_rate"]
+    )
     work["corner_case"] = work["high_dice"] & fail_any
 
     corner = work[work["corner_case"]].copy()
@@ -116,6 +126,7 @@ def analyze_model(
         corner["failure_flags"] = (
             corner[[
                 "fail_obj_count_error",
+                "fail_merge_rate",
                 "fail_split_rate",
             ]]
             .apply(
@@ -123,6 +134,7 @@ def analyze_model(
                     flag
                     for flag, ok in [
                         ("obj_count_error", r["fail_obj_count_error"]),
+                        ("merge_rate", r["fail_merge_rate"]),
                         ("split_rate", r["fail_split_rate"]),
                     ]
                     if bool(ok)
@@ -133,6 +145,7 @@ def analyze_model(
         corner["failure_count"] = (
             corner[[
                 "fail_obj_count_error",
+                "fail_merge_rate",
                 "fail_split_rate",
             ]]
             .sum(axis=1)
@@ -149,15 +162,16 @@ def analyze_model(
         "corner_rate_of_high_dice": float(len(corner) / n_high_dice) if n_high_dice else 0.0,
         "dice_threshold": float(dice_threshold),
         "obj_count_threshold": float(obj_count_threshold),
+        "merge_rate_threshold": float(merge_rate_threshold),
         "split_rate_threshold": float(split_rate_threshold),
         "counts": {
             "high_dice_cases": n_high_dice,
             "fail_obj_count_error": int(work["fail_obj_count_error"].sum()),
+            "fail_merge_rate": int(work["fail_merge_rate"].sum()),
             "fail_split_rate": int(work["fail_split_rate"].sum()),
         },
     }
     return corner, summary
-
 
 def main() -> None:
     args = parse_args()
@@ -173,6 +187,7 @@ def main() -> None:
     print(f"  models         : {args.models}")
     print(f"  dice threshold : {args.dice_threshold}")
     print(f"  obj count thr  : {args.obj_count_threshold}")
+    print(f"  merge rate thr : {args.merge_rate_threshold}")
     print(f"  split rate thr : {args.split_rate_threshold}")
     print("=" * 72)
 
@@ -187,6 +202,7 @@ def main() -> None:
             df,
             args.dice_threshold,
             args.obj_count_threshold,
+            args.merge_rate_threshold,
             args.split_rate_threshold,
         )
 
@@ -214,7 +230,6 @@ def main() -> None:
     else:
         pd.DataFrame().to_csv(combined_path, index=False)
         print(f"\nNo corner cases found; wrote empty file: {combined_path}")
-
 
 if __name__ == "__main__":
     main()

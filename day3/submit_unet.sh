@@ -11,9 +11,6 @@
 #SBATCH --error=/home/s2292949/dissertation_resplit/logs/unet_train_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=s2292949@ed.ac.uk
-# =============================================================================
-# Legacy wrapper for the canonical Day 4 U-Net trainer
-# =============================================================================
 
 set -e
 

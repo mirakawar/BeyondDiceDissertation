@@ -47,17 +47,14 @@ import nibabel as nib
 from pathlib import Path
 from tifffile import imread
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
 DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
 SPLITS_JSON    = "/home/s2292949/dissertation_resplit/data/splits.json"
-NNUNET_RAW_DIR = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"   # ← inside nnunet/
+NNUNET_RAW_DIR = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
 OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
 DATASET_ID     = "001"
 DATASET_NAME   = "Mitochondria"
-# ─────────────────────────────────────────────────────────────────────────────
 
 DATASET_FULL_NAME = f"Dataset{DATASET_ID}_{DATASET_NAME}"
-
 
 def to_nifti(array: np.ndarray, is_label: bool = False) -> nib.Nifti1Image:
     """
@@ -71,12 +68,10 @@ def to_nifti(array: np.ndarray, is_label: bool = False) -> nib.Nifti1Image:
         data = array.astype(np.float32).T[:, :, np.newaxis]
     return nib.Nifti1Image(data, np.eye(4))
 
-
 def to_nifti_instance(array: np.ndarray) -> nib.Nifti1Image:
     """Save instance mask as-is (uint8, values 0-255)."""
     data = array.astype(np.uint8).T[:, :, np.newaxis]
     return nib.Nifti1Image(data, np.eye(4))
-
 
 def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     data_root      = Path(data_root)
@@ -86,13 +81,12 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     with open(splits_json) as f:
         splits = json.load(f)
 
-    # ── Create directory structure ───────────────────────────────────────────
     dataset_dir   = nnunet_raw_dir / DATASET_FULL_NAME
     images_tr     = dataset_dir / "imagesTr"
     labels_tr     = dataset_dir / "labelsTr"
-    instances_tr  = dataset_dir / "instancesTr"   # original instance masks
+    instances_tr  = dataset_dir / "instancesTr"
     images_ts     = dataset_dir / "imagesTs"
-    instances_ts  = dataset_dir / "instancesTs"   # original instance masks
+    instances_ts  = dataset_dir / "instancesTs"
     for d in [images_tr, labels_tr, instances_tr, images_ts, instances_ts]:
         d.mkdir(parents=True, exist_ok=True)
 
@@ -102,7 +96,6 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     val_case_ids   = []
     test_case_ids  = []
 
-    # ── Train + Val → imagesTr / labelsTr / instancesTr ─────────────────────
     for split_name in ["train", "val"]:
         for entry in splits[split_name]:
             sample   = entry["sample"]
@@ -113,11 +106,9 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
             img  = imread(str(data_root / sample / "images" / filename))
             mask = imread(str(data_root / sample / "masks"  / filename))
 
-            # Binary image + binary label for training
             nib.save(to_nifti(img,  is_label=False), images_tr / f"{case_id}_0000.nii.gz")
             nib.save(to_nifti(mask, is_label=True),  labels_tr / f"{case_id}.nii.gz")
 
-            # Original instance mask for evaluation
             nib.save(to_nifti_instance(mask), instances_tr / f"{case_id}_inst.nii.gz")
 
             id_map[case_id] = {
@@ -137,7 +128,6 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
             if case_counter % 500 == 1:
                 print(f"  Converted {case_counter - 1} slices...")
 
-    # ── Test → imagesTs / instancesTs (no labelsTr) ──────────────────────────
     for entry in splits["test"]:
         sample   = entry["sample"]
         filename = entry["filename"]
@@ -165,7 +155,6 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     print(f"  imagesTr val    : {len(val_case_ids)}")
     print(f"  imagesTs test   : {len(test_case_ids)}")
 
-    # ── Write dataset.json ───────────────────────────────────────────────────
     dataset_json = {
         "channel_names": {"0": "EM"},
         "labels": {
@@ -180,10 +169,6 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
         json.dump(dataset_json, f, indent=2)
     print(f"\ndataset.json saved     → {dataset_dir / 'dataset.json'}")
 
-    # ── Write splits_final.{json,pkl} ────────────────────────────────────────
-    # nnU-Net v2 expects a list of fold dicts in splits_final.json.
-    # Fold 0 = our exact train/val from splits.json.
-    # Folds 1–4 are copies — they will NEVER be trained.
     splits = [
         {"train": list(train_case_ids), "val": list(val_case_ids)}
         for _ in range(5)
@@ -201,14 +186,12 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     print(f"  Fold 0 train : {len(train_case_ids)} cases")
     print(f"  Fold 0 val   : {len(val_case_ids)} cases")
 
-    # ── Save nnunet_id_map.json ──────────────────────────────────────────────
     id_map_path = output_dir / "nnunet_id_map.json"
     with open(id_map_path, "w") as f:
         json.dump(id_map, f, indent=2)
     print(f"ID map saved           → {id_map_path}")
     print("  (maps case IDs like mito_0001 back to original sample/filename)")
 
-    # ── Verification ────────────────────────────────────────────────────────
     tr_images    = list(images_tr.glob("*_0000.nii.gz"))
     tr_labels    = list(labels_tr.glob("*.nii.gz"))
     tr_instances = list(instances_tr.glob("*_inst.nii.gz"))
@@ -222,14 +205,13 @@ def create_nnunet_format(data_root, splits_json, nnunet_raw_dir, output_dir):
     print(f"imagesTs    : {len(ts_images)} images")
     print(f"instancesTs : {len(ts_instances)} instance masks")
 
-    assert len(tr_images) == len(tr_labels), \
+    assert len(tr_images) == len(tr_labels),\
         f"MISMATCH: {len(tr_images)} images vs {len(tr_labels)} labels in imagesTr"
-    assert len(tr_images) == len(tr_instances), \
+    assert len(tr_images) == len(tr_instances),\
         f"MISMATCH: {len(tr_images)} images vs {len(tr_instances)} instance masks in instancesTr"
-    assert len(ts_images) == len(ts_instances), \
+    assert len(ts_images) == len(ts_instances),\
         f"MISMATCH: {len(ts_images)} images vs {len(ts_instances)} instance masks in instancesTs"
     print("✓ All counts match")
-
 
 if __name__ == "__main__":
     create_nnunet_format(DATA_ROOT, SPLITS_JSON, NNUNET_RAW_DIR, OUTPUT_DIR)

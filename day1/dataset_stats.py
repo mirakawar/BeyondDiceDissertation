@@ -24,19 +24,15 @@ import pandas as pd
 from pathlib import Path
 from tifffile import imread
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
 DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
 INSPECTION_CSV = "/home/s2292949/dissertation_resplit/data/inspection_report.csv"
 OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
     data_root  = Path(data_root)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Skip known broken pairs from inspection
     inspection = pd.read_csv(inspection_csv)
     broken = set(
         zip(
@@ -73,11 +69,9 @@ def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
             img  = imread(str(img_path))
             mask = imread(str(mask_path))
 
-            # Instance count from original mask BEFORE binarising
             unique_vals  = np.unique(mask)
             n_instances  = int(len([v for v in unique_vals if v > 0]))
 
-            # Binarise for fg/bg pixel stats only
             mask_bin     = (mask > 0).astype(np.uint8)
             h, w         = img.shape[:2]
             total_pixels = h * w
@@ -125,7 +119,6 @@ def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
         if (i + 1) % 50 == 0:
             print(f"  Processed {i + 1}/{len(sample_folders)} samples...")
 
-    # ── Save dataset_stats.csv ───────────────────────────────────────────────
     slice_csv = output_dir / "dataset_stats.csv"
     if slice_rows:
         with open(slice_csv, "w", newline="") as f:
@@ -134,7 +127,6 @@ def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
             writer.writerows(slice_rows)
         print(f"\nSlice stats saved  → {slice_csv}  ({len(slice_rows)} slices)")
 
-    # ── Save sample_stats.csv ────────────────────────────────────────────────
     sample_csv = output_dir / "sample_stats.csv"
     if sample_rows:
         with open(sample_csv, "w", newline="") as f:
@@ -143,7 +135,6 @@ def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
             writer.writerows(sample_rows)
         print(f"Sample stats saved → {sample_csv}  ({len(sample_rows)} samples)")
 
-    # ── Global summary ───────────────────────────────────────────────────────
     all_fg      = [r["fg_ratio"] for r in slice_rows]
     total_fg_px = sum(r["fg_pixels"] for r in slice_rows)
     total_px    = sum(r["total_pixels"] for r in slice_rows)
@@ -160,7 +151,6 @@ def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
     print(f"Per-slice fg ratio    : mean={np.mean(all_fg):.4f}  "
           f"median={np.median(all_fg):.4f}  "
           f"min={np.min(all_fg):.4f}  max={np.max(all_fg):.4f}")
-
 
 if __name__ == "__main__":
     compute_dataset_stats(DATA_ROOT, INSPECTION_CSV, OUTPUT_DIR)

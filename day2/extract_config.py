@@ -22,21 +22,17 @@ import json
 import shutil
 from pathlib import Path
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
 NNUNET_PREPROCESSED     = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed"
 NNUNET_RAW              = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
 DATASET_NAME            = "Dataset001_Mitochondria"
 CONFIG_OUT              = "/home/s2292949/dissertation_resplit/config.json"
 SPLITS_JSON             = "/home/s2292949/dissertation_resplit/data/splits.json"
 
-# Training settings — confirmed by supervisor
 MAX_EPOCHS              = 1000
 EARLY_STOPPING_PATIENCE = 50
 EARLY_STOPPING_DELTA    = 0.001
-AUGMENTATION_UNET       = False   # supervisor: keep U-Net simple, no augmentation
+AUGMENTATION_UNET       = False
 RANDOM_SEED             = 42
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 def extract_config():
     preprocessed_dir = Path(NNUNET_PREPROCESSED) / DATASET_NAME
@@ -45,15 +41,12 @@ def extract_config():
     with open(SPLITS_JSON) as f:
         active_splits = json.load(f)
 
-    # ── Check preprocessing has been run ────────────────────────────────────
     if not plans_path.exists():
         print(f"ERROR: nnUNetPlans.json not found at {plans_path}")
         print("Run this first:")
         print("  nnUNetv2_plan_and_preprocess -d 001 --verify_dataset_integrity")
         return
 
-    # ── Step 1: Copy splits_final.json to preprocessed folder ───────────────
-    # nnU-Net v2 reads splits from PREPROCESSED/splits_final.json
     src_json = raw_dir / "splits_final.json"
     dst_json = preprocessed_dir / "splits_final.json"
 
@@ -78,13 +71,11 @@ def extract_config():
     else:
         print(f"WARNING: legacy splits_final.pkl not found at {src_pkl}")
 
-    # ── Step 2: Read nnUNetPlans.json ────────────────────────────────────────
     with open(plans_path) as f:
         plans = json.load(f)
 
     print(f"\n✓ nnUNetPlans.json loaded")
 
-    # ── Step 3: Extract 2D configuration ────────────────────────────────────
     configs = plans.get("configurations", {})
     if "2d" not in configs:
         print("ERROR: No 2d configuration found in nnUNetPlans.json")
@@ -95,9 +86,6 @@ def extract_config():
     patch_size = cfg_2d.get("patch_size", [224, 224])
     batch_size = cfg_2d.get("batch_size", 12)
 
-    # ── Step 4: Get pixel spacing from dataset fingerprint ───────────────────
-    # Supervisor confirmed: HD95 in pixel units
-    # Record spacing for reference/dissertation only
     fingerprint_path = preprocessed_dir / "dataset_fingerprint.json"
     spacing = [1.0, 1.0]
     if fingerprint_path.exists():
@@ -110,7 +98,6 @@ def extract_config():
     else:
         print("WARNING: dataset_fingerprint.json not found, using spacing [1.0, 1.0]")
 
-    # ── Step 5: Write config.json ────────────────────────────────────────────
     config = {
         "dataset": {
             "name":            "CEM-MitoLab",
@@ -194,7 +181,6 @@ def extract_config():
     print(f"  boundary_tolerances  : [2px, 5px]")
     print(f"  thresholds           : [0.3, 0.4, 0.5, 0.6, 0.7]")
     print(f"  object IoU thresholds: [0.3, 0.5, 0.7, 0.9]")
-
 
 if __name__ == "__main__":
     extract_config()

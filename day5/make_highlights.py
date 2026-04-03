@@ -1,217 +1,268 @@
+#!/usr/bin/env python3
 """
-Generate evaluation/results/highlights_summary.txt — a plain-text summary
-of all key statistics for both models.
+Generate reproducible documentation for the current unsuffixed evaluation.
+
+Outputs by default:
+  evaluation/results/highlights_summary.txt
+  evaluation/results/highlights_summary.md
 """
+
+from __future__ import annotations
+
 import argparse
-import json, pandas as pd, numpy as np
+import json
 from pathlib import Path
+from typing import Iterable
 
-R = Path("/home/s2292949/dissertation_resplit/evaluation/results")
+import pandas as pd
 
-unet_agg = pd.read_csv(R / "unet_aggregate.csv", index_col=0)
-nn_agg   = pd.read_csv(R / "nnunet_aggregate.csv", index_col=0)
-unet_per = pd.read_csv(R / "unet_per_image.csv")
-nn_per   = pd.read_csv(R / "nnunet_per_image.csv")
-stats    = pd.read_csv(R / "stats_tests.csv")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RESULTS_DIR = REPO_ROOT / "evaluation/results"
 
-with open(R / "unet_corner_case_summary.json") as f:  ucc = json.load(f)
-with open(R / "nnunet_corner_case_summary.json") as f: ncc = json.load(f)
-with open(R / "stats_tests_summary.json") as f:        sts = json.load(f)
-
-
-def parse_args():
-    p = argparse.ArgumentParser(description="Generate plain-text dissertation highlights summary.")
-    p.add_argument(
-        "--threshold-tag",
-        default="t50",
-        choices=["t30", "t40", "t50", "t60", "t70"],
-        help="Threshold tag used for threshold-dependent pixel metrics.",
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate highlights summaries for the current results.")
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=RESULTS_DIR,
+        help="Directory containing the result files.",
     )
-    p.add_argument(
-        "--output-name",
+    parser.add_argument(
+        "--txt-name",
         default="highlights_summary.txt",
-        help="Output filename inside evaluation/results/.",
+        help="Output plain-text filename inside results-dir.",
     )
-    return p.parse_args()
-
-
-def get(df, row, col="mean"):
-    try:
-        return float(df.loc[row, col])
-    except Exception:
-        return float("nan")
-
-
-def padj(metric):
-    row = stats[stats.metric == metric]
-    return row.p_adjusted_bh.values[0] if len(row) else float("nan")
-
-
-def finite_rate(df, col):
-    vals = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
-    return float(np.isfinite(vals).mean())
-
-
-def format_padj(metric):
-    p = padj(metric)
-    return "n/a" if not np.isfinite(p) else f"{p:.2e}"
-
-
-def fmt_mean_sd(df, row):
-    mean = get(df, row, "mean")
-    sd = get(df, row, "std")
-    return f"{mean:.4f} ± {sd:.4f}"
-
-
-def fmt_median_iqr(df, row):
-    median = get(df, row, "median")
-    q25 = get(df, row, "q25")
-    q75 = get(df, row, "q75")
-    return f"{median:.4f} [{q25:.4f}, {q75:.4f}]"
-
-
-args = parse_args()
-thr = args.threshold_tag
-thr_label = f"{int(thr[1:]) / 100:.1f}"
-
-lines = []
-lines.append("# Dissertation Statistics Highlights")
-lines.append(f"Generated from evaluation/results/ — 5,677 paired test cases, threshold={thr_label}")
-lines.append("")
-
-lines.append("## Statistical Significance (Wilcoxon signed-rank + Benjamini-Hochberg FDR, alpha=0.05)")
-lines.append(f"  Metrics tested:      {sts['n_metrics_tested']}")
-lines.append(f"  Significant (BH005): {sts['n_significant_bh005']} / {sts['n_metrics_tested']}  (ALL metrics)")
-lines.append(f"  nnU-Net better:      {sts['n_nnunet_better']} / {sts['n_metrics_tested']}")
-lines.append(f"  U-Net better:        {sts['n_unet_better']} / {sts['n_metrics_tested']}  (HD95, merge_rate, ECE — all minor)")
-lines.append("")
-
-lines.append(f"## Per-Image Pixel Metrics (Mean +- SD, t={thr_label})")
-lines.append(f"  {'Metric':<25} {'U-Net mean±sd':>20} {'nnU-Net mean±sd':>20} {'ratio':>8}  p_adj (BH)")
-lines.append("  " + "-" * 92)
-pixel_rows = [
-    (f"dice_fg_{thr}",         "Foreground Dice"),
-    (f"dice_bg_{thr}",         "Background Dice"),
-    (f"dice_mean_{thr}",       "Overall Dice"),
-    (f"iou_{thr}",             "IoU"),
-    (f"precision_{thr}",       "Precision"),
-    (f"recall_{thr}",          "Recall"),
-    (f"boundary_f1_2px_{thr}", "Boundary F1 (2px)"),
-    (f"boundary_f1_5px_{thr}", "Boundary F1 (5px)"),
-    ("ece",                 "ECE (calibration)"),
-]
-for key, label in pixel_rows:
-    u = get(unet_agg, key)
-    n = get(nn_agg, key)
-    ratio = n / u if u != 0 else float("nan")
-    lines.append(f"  {label:<25} {fmt_mean_sd(unet_agg, key):>20} {fmt_mean_sd(nn_agg, key):>20} {ratio:>8.2f}x  {format_padj(key)}")
-u_hd95_median = get(unet_agg, f"hd95_{thr}", col="median")
-n_hd95_median = get(nn_agg, f"hd95_{thr}", col="median")
-hd95_ratio = n_hd95_median / u_hd95_median if u_hd95_median != 0 else float("nan")
-lines.append(f"  {'HD95 median (px)':<25} {u_hd95_median:>20.4f} {n_hd95_median:>20.4f} {hd95_ratio:>8.2f}x  {format_padj(f'hd95_{thr}')}")
-u_hd95_finite = finite_rate(unet_per, f"hd95_{thr}")
-n_hd95_finite = finite_rate(nn_per, f"hd95_{thr}")
-finite_ratio = n_hd95_finite / u_hd95_finite if u_hd95_finite != 0 else float("nan")
-lines.append(f"  {'HD95 finite-case rate':<25} {u_hd95_finite:>19.2%} {n_hd95_finite:>19.2%} {finite_ratio:>8.2f}x  n/a")
-lines.append("")
-
-lines.append("## Per-Image Object Metrics (Mean +- SD, thresholded at default t=0.5)")
-lines.append(f"  {'Metric':<25} {'U-Net mean±sd':>20} {'nnU-Net mean±sd':>20} {'ratio':>8}  p_adj (BH)")
-lines.append("  " + "-" * 92)
-obj_rows = [
-    ("obj_count_error",    "Count error |pred-GT|"),
-    ("merge_rate",         "Merge rate"),
-    ("split_rate",         "Split rate"),
-    ("connectivity_error", "Connectivity error"),
-    ("pq_iou50",           "Panoptic Quality (PQ)"),
-    ("matched_iou_mean",   "Matched IoU mean"),
-    ("obj_precision_t50",  "Obj precision @0.5"),
-    ("obj_recall_t50",     "Obj recall @0.5"),
-]
-for key, label in obj_rows:
-    u = get(unet_agg, key)
-    n = get(nn_agg, key)
-    if u != 0:
-        ratio = n / u
-    else:
-        ratio = float("nan")
-    lines.append(f"  {label:<25} {fmt_mean_sd(unet_agg, key):>20} {fmt_mean_sd(nn_agg, key):>20} {ratio:>8.2f}x  {format_padj(key)}")
-
-u_pred = get(unet_agg, "pred_objects")
-n_pred = get(nn_agg, "pred_objects")
-u_gt   = get(unet_agg, "gt_objects")
-lines.append("")
-lines.append(f"  GT objects mean (both):   {u_gt:.2f}")
-lines.append(f"  Pred objects mean U-Net:  {u_pred:.2f}  (over-segments {u_pred/u_gt:.1f}x)")
-lines.append(f"  Pred objects mean nnU-Net:{n_pred:.2f}  (near-perfect, {n_pred/u_gt:.2f}x GT)")
-lines.append("")
-
-lines.append("## Corner Cases  (Dice>0.85 AND >=1 object metric exceeds Q75 cutoff)")
-lines.append(f"  {'':30} {'U-Net':>10} {'nnU-Net':>10}")
-lines.append(f"  {'Usable cases':<30} {ucc['cases_usable']:>10} {ncc['cases_usable']:>10}")
-lines.append(f"  {'High-Dice cases':<30} {ucc['counts']['high_dice_cases']:>10} {ncc['counts']['high_dice_cases']:>10}")
-lines.append(f"  {'Corner cases':<30} {ucc['corner_cases']:>10} {ncc['corner_cases']:>10}")
-lines.append(f"  {'Corner rate (/ usable)':<30} {ucc['corner_rate']*100:>9.2f}% {ncc['corner_rate']*100:>9.2f}%")
-lines.append(f"  {'Corner rate (/ high-Dice)':<30} {ucc['corner_rate_of_high_dice']*100:>9.2f}% {ncc['corner_rate_of_high_dice']*100:>9.2f}%")
-lines.append("")
-
-lines.append(f"## Per-Image Pixel Metrics (Median [Q1, Q3], t={thr_label})")
-lines.append(
-    f"  {'Metric':<22} {'U-Net median [Q1,Q3]':>24} {'nnU-Net median [Q1,Q3]':>26}"
-)
-lines.append("  " + "-" * 76)
-image_pixel_rows = [
-    (f"dice_fg_{thr}", "Foreground Dice"),
-    (f"dice_bg_{thr}", "Background Dice"),
-    (f"dice_mean_{thr}", "Overall Dice"),
-    (f"iou_{thr}", "IoU"),
-    (f"hd95_{thr}", "HD95 (px)"),
-    (f"boundary_f1_2px_{thr}", "Boundary F1 (2px)"),
-    (f"boundary_f1_5px_{thr}", "Boundary F1 (5px)"),
-    ("ece", "ECE"),
-]
-for key, label in image_pixel_rows:
-    lines.append(
-        f"  {label:<22} {fmt_median_iqr(unet_agg, key):>24} {fmt_median_iqr(nn_agg, key):>26}"
+    parser.add_argument(
+        "--md-name",
+        default="highlights_summary.md",
+        help="Output markdown filename inside results-dir.",
     )
-lines.append("")
+    return parser.parse_args()
 
-lines.append("## Per-Image Object Metrics (Median [Q1, Q3], thresholded at default t=0.5)")
-lines.append(
-    f"  {'Metric':<22} {'U-Net median [Q1,Q3]':>24} {'nnU-Net median [Q1,Q3]':>26}"
-)
-lines.append("  " + "-" * 76)
-image_object_rows = [
-    ("obj_count_error", "Count error"),
-    ("merge_rate", "Merge rate"),
-    ("split_rate", "Split rate"),
-    ("connectivity_error", "Connectivity error"),
-    ("pq_iou50", "Panoptic Quality"),
-]
-for key, label in image_object_rows:
-    lines.append(
-        f"  {label:<22} {fmt_median_iqr(unet_agg, key):>24} {fmt_median_iqr(nn_agg, key):>26}"
-    )
-lines.append("")
+def get(df: pd.DataFrame, metric: str, column: str = "mean") -> float:
+    return float(df.loc[metric, column])
 
-lines.append("## Key Ratios (U-Net disadvantage)")
-uce = get(unet_agg, "obj_count_error"); nce = get(nn_agg, "obj_count_error")
-usr = get(unet_agg, "split_rate");      nsr = get(nn_agg, "split_rate")
-upq = get(unet_agg, "pq_iou50");       npq = get(nn_agg, "pq_iou50")
-ubf = get(unet_agg, "boundary_f1_2px_t50"); nbf = get(nn_agg, "boundary_f1_2px_t50")
-lines.append(f"  Object count error:   {uce/nce:.1f}x worse  ({uce:.2f} vs {nce:.2f})")
-lines.append(f"  Split rate:           {usr/nsr:.1f}x worse  ({usr:.3f} vs {nsr:.3f})")
-lines.append(f"  Panoptic Quality:     {npq/upq:.1f}x better nnU-Net  ({upq:.3f} vs {npq:.3f})")
-lines.append(f"  Boundary F1 (2px):    {nbf/ubf:.1f}x better nnU-Net  ({ubf:.3f} vs {nbf:.3f})")
-lines.append("")
-lines.append("## Metrics where U-Net is marginally better (all significant but tiny effect)")
-lines.append(f"  HD95:       median {u_hd95_median:.1f} vs {n_hd95_median:.1f} px  (finite-case rates {u_hd95_finite:.1%} vs {n_hd95_finite:.1%})")
-lines.append("  ECE:        0.090 vs 0.086     (diff=0.004, both well-calibrated)")
-lines.append("  Merge rate: 0.032 vs 0.030     (negligible difference)")
+def fmt(x: float, digits: int = 4) -> str:
+    return f"{x:.{digits}f}"
 
-out = R / args.output_name
-with open(out, "w") as f:
-    f.write("\n".join(lines) + "\n")
-print(f"Written: {out}")
-print()
-print("\n".join(lines))
+def pct(x: float, digits: int = 1) -> str:
+    return f"{100.0 * x:.{digits}f}%"
+
+def load_json(path: Path) -> dict:
+    return json.loads(path.read_text())
+
+def markdown_table(headers: list[str], rows: Iterable[Iterable[str]]) -> list[str]:
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "|" + "|".join(["---"] * len(headers)) + "|",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(row) + " |")
+    return lines
+
+def main() -> None:
+    args = parse_args()
+    r = args.results_dir
+
+    unet_agg = pd.read_csv(r / "unet_aggregate.csv", index_col=0)
+    nn_agg = pd.read_csv(r / "nnunet_aggregate.csv", index_col=0)
+    unet_gp = pd.read_csv(r / "unet_aggregate_gt_positive.csv", index_col=0)
+    nn_gp = pd.read_csv(r / "nnunet_aggregate_gt_positive.csv", index_col=0)
+
+    unet_summary = load_json(r / "unet_summary.json")
+    nnunet_summary = load_json(r / "nnunet_summary.json")
+    unet_cc = load_json(r / "unet_corner_case_summary.json")
+    nnunet_cc = load_json(r / "nnunet_corner_case_summary.json")
+    stats_summary = load_json(r / "stats_tests_summary.json")
+
+    fg_quart = pd.read_csv(r / "stratified_fg_quartile.csv")
+    q4 = fg_quart[fg_quart["stratum"] == "Q4 (high)"].iloc[0]
+
+    output_files = [
+        "unet_aggregate.csv",
+        "nnunet_aggregate.csv",
+        "unet_aggregate_gt_positive.csv",
+        "nnunet_aggregate_gt_positive.csv",
+        "unet_summary.json",
+        "nnunet_summary.json",
+        "unet_corner_case_summary.json",
+        "nnunet_corner_case_summary.json",
+        "corner_cases_combined.csv",
+        "stats_tests.csv",
+        "stats_tests_summary.json",
+        "stratified_fg_quartile.csv",
+        "stratified_obj_count_quartile.csv",
+        "stratified_sample_type.csv",
+        "stratified_empty_vs_nonempty.csv",
+        "stratified_summary.json",
+    ]
+
+    pixel_rows = [
+        ("Foreground Dice", fmt(get(unet_agg, "dice_fg_t50")), fmt(get(nn_agg, "dice_fg_t50"))),
+        ("IoU", fmt(get(unet_agg, "iou_t50")), fmt(get(nn_agg, "iou_t50"))),
+        ("Precision", fmt(get(unet_agg, "precision_t50")), fmt(get(nn_agg, "precision_t50"))),
+        ("Recall", fmt(get(unet_agg, "recall_t50")), fmt(get(nn_agg, "recall_t50"))),
+        ("HD95", f"{get(unet_agg, 'hd95_t50'):.2f}", f"{get(nn_agg, 'hd95_t50'):.2f}"),
+        ("Boundary F1 (2 px)", fmt(get(unet_agg, "boundary_f1_2px_t50")), fmt(get(nn_agg, "boundary_f1_2px_t50"))),
+        ("Boundary F1 (5 px)", fmt(get(unet_agg, "boundary_f1_5px_t50")), fmt(get(nn_agg, "boundary_f1_5px_t50"))),
+        ("ECE", fmt(get(unet_agg, "ece")), fmt(get(nn_agg, "ece"))),
+    ]
+
+    object_rows = [
+        ("Predicted objects per slice", fmt(get(unet_agg, "pred_objects")), fmt(get(nn_agg, "pred_objects"))),
+        ("Ground-truth objects per slice", fmt(get(unet_agg, "gt_objects")), fmt(get(nn_agg, "gt_objects"))),
+        ("Object count error", fmt(get(unet_agg, "obj_count_error")), fmt(get(nn_agg, "obj_count_error"))),
+        ("Signed count error", fmt(get(unet_agg, "obj_count_error_signed")), fmt(get(nn_agg, "obj_count_error_signed"))),
+        ("Merge rate", fmt(get(unet_agg, "merge_rate")), fmt(get(nn_agg, "merge_rate"))),
+        ("Split rate", fmt(get(unet_agg, "split_rate")), fmt(get(nn_agg, "split_rate"))),
+        ("Connectivity error", fmt(get(unet_agg, "connectivity_error")), fmt(get(nn_agg, "connectivity_error"))),
+        ("Matched IoU mean", fmt(get(unet_agg, "matched_iou_mean")), fmt(get(nn_agg, "matched_iou_mean"))),
+        ("PQ (IoU > 0.5)", fmt(get(unet_agg, "pq_iou50")), fmt(get(nn_agg, "pq_iou50"))),
+        ("Object precision @0.5", fmt(get(unet_agg, "obj_precision_t50")), fmt(get(nn_agg, "obj_precision_t50"))),
+        ("Object recall @0.5", fmt(get(unet_agg, "obj_recall_t50")), fmt(get(nn_agg, "obj_recall_t50"))),
+        ("Object precision @0.9", fmt(get(unet_agg, "obj_precision_t90")), fmt(get(nn_agg, "obj_precision_t90"))),
+        ("Object recall @0.9", fmt(get(unet_agg, "obj_recall_t90")), fmt(get(nn_agg, "obj_recall_t90"))),
+    ]
+
+    gp_rows = [
+        ("Predicted objects per slice", fmt(get(unet_gp, "pred_objects")), fmt(get(nn_gp, "pred_objects"))),
+        ("Ground-truth objects per slice", fmt(get(unet_gp, "gt_objects")), fmt(get(nn_gp, "gt_objects"))),
+        ("Object count error", fmt(get(unet_gp, "obj_count_error")), fmt(get(nn_gp, "obj_count_error"))),
+        ("Merge rate", fmt(get(unet_gp, "merge_rate")), fmt(get(nn_gp, "merge_rate"))),
+        ("Split rate", fmt(get(unet_gp, "split_rate")), fmt(get(nn_gp, "split_rate"))),
+        ("Connectivity error", fmt(get(unet_gp, "connectivity_error")), fmt(get(nn_gp, "connectivity_error"))),
+        ("Matched IoU mean", fmt(get(unet_gp, "matched_iou_mean")), fmt(get(nn_gp, "matched_iou_mean"))),
+        ("PQ (IoU > 0.5)", fmt(get(unet_gp, "pq_iou50")), fmt(get(nn_gp, "pq_iou50"))),
+        ("Object precision @0.5", fmt(get(unet_gp, "obj_precision_t50")), fmt(get(nn_gp, "obj_precision_t50"))),
+        ("Object recall @0.5", fmt(get(unet_gp, "obj_recall_t50")), fmt(get(nn_gp, "obj_recall_t50"))),
+        ("Object precision @0.9", fmt(get(unet_gp, "obj_precision_t90")), fmt(get(nn_gp, "obj_precision_t90"))),
+        ("Object recall @0.9", fmt(get(unet_gp, "obj_recall_t90")), fmt(get(nn_gp, "obj_recall_t90"))),
+    ]
+
+    txt_lines: list[str] = []
+    txt_lines.append("Evaluation Highlights")
+    txt_lines.append("=====================")
+    txt_lines.append("")
+    txt_lines.append("Evaluation setting:")
+    txt_lines.append(f"- {unet_summary['cases_evaluated']} / {unet_summary['cases_total']} test cases evaluated for both models")
+    txt_lines.append(f"- {unet_summary['cases_gt_positive']} GT-positive cases")
+    txt_lines.append("")
+    txt_lines.append("Main statistical result:")
+    txt_lines.append(f"- {stats_summary['n_significant_bh005']} / {stats_summary['n_metrics_tested']} metrics significant after BH correction")
+    txt_lines.append(f"- {stats_summary['n_nnunet_better']} / {stats_summary['n_metrics_tested']} metrics favour nnU-Net")
+    txt_lines.append(f"- {stats_summary['n_unet_better']} / {stats_summary['n_metrics_tested']} metrics favour U-Net")
+    txt_lines.append("")
+    txt_lines.append("Main pixel metrics at threshold 0.5 (means):")
+    for label, u, n in pixel_rows:
+        txt_lines.append(f"- {label + ':':<24} U-Net {u:<8} | nnU-Net {n}")
+    txt_lines.append("")
+    txt_lines.append("Main object metrics, all cases (means):")
+    for label, u, n in object_rows:
+        txt_lines.append(f"- {label + ':':<24} U-Net {u:<8} | nnU-Net {n}")
+    txt_lines.append("")
+    txt_lines.append("GT-positive object metrics (means):")
+    for label, u, n in gp_rows:
+        txt_lines.append(f"- {label + ':':<24} U-Net {u:<8} | nnU-Net {n}")
+    txt_lines.append("")
+    txt_lines.append("High-Dice corner cases:")
+    txt_lines.append("- Rule: Dice > 0.85 and (obj_count_error > 4 or merge_rate > 0 or split_rate > 0)")
+    txt_lines.append(f"- U-Net usable cases: {unet_cc['cases_usable']}")
+    txt_lines.append(f"- U-Net high-Dice cases: {unet_cc['counts']['high_dice_cases']}")
+    txt_lines.append(f"- U-Net corner cases among usable cases: {unet_cc['corner_cases']} / {unet_cc['cases_usable']} = {pct(unet_cc['corner_rate'], 2)}")
+    txt_lines.append(f"- U-Net corner cases among high-Dice cases: {unet_cc['corner_cases']} / {unet_cc['counts']['high_dice_cases']} = {pct(unet_cc['corner_rate_of_high_dice'])}")
+    txt_lines.append(f"- nnU-Net usable cases: {nnunet_cc['cases_usable']}")
+    txt_lines.append(f"- nnU-Net high-Dice cases: {nnunet_cc['counts']['high_dice_cases']}")
+    txt_lines.append(f"- nnU-Net corner cases among usable cases: {nnunet_cc['corner_cases']} / {nnunet_cc['cases_usable']} = {pct(nnunet_cc['corner_rate'], 2)}")
+    txt_lines.append(f"- nnU-Net corner cases among high-Dice cases: {nnunet_cc['corner_cases']} / {nnunet_cc['counts']['high_dice_cases']} = {pct(nnunet_cc['corner_rate_of_high_dice'])}")
+    txt_lines.append("")
+    txt_lines.append("Foreground-density quartiles (non-empty cases):")
+    for quartile in ["Q1 (low)", "Q2", "Q3", "Q4 (high)"]:
+        row = fg_quart[fg_quart["stratum"] == quartile].iloc[0]
+        txt_lines.append(f"- {quartile} Dice:  U-Net {row['unet_dice_fg_t50_mean']:.3f} | nnU-Net {row['nnunet_dice_fg_t50_mean']:.3f}")
+        txt_lines.append(f"- {quartile} PQ:    U-Net {row['unet_pq_iou50_mean']:.3f} | nnU-Net {row['nnunet_pq_iou50_mean']:.3f}")
+        txt_lines.append(f"- {quartile} split: U-Net {row['unet_split_rate_mean']:.3f} | nnU-Net {row['nnunet_split_rate_mean']:.3f}")
+        txt_lines.append("")
+    txt_lines.append("Interpretation:")
+    txt_lines.append("- The Dice gap narrows in dense slices, but the object-level gap remains large.")
+    txt_lines.append("- The current connected-component object-level analysis strengthens the claim that voxel-level metrics alone understate the biological difference between the models.")
+
+    md_lines: list[str] = []
+    md_lines.append("# Evaluation Highlights")
+    md_lines.append("")
+    md_lines.append("This summary documents the current unsuffixed evaluation outputs.")
+    md_lines.append("")
+    md_lines.append("## Scope")
+    md_lines.append("")
+    md_lines.append(f"- Test cases evaluated: `{unet_summary['cases_evaluated']} / {unet_summary['cases_total']}` for both models")
+    md_lines.append(f"- Ground-truth-positive cases: `{unet_summary['cases_gt_positive']}`")
+    md_lines.append("")
+    md_lines.append("## Output Files")
+    md_lines.append("")
+    for name in output_files:
+        md_lines.append(f"- `{name}`")
+    md_lines.append("")
+    md_lines.append("## Headline Result")
+    md_lines.append("")
+    md_lines.append("- Metrics tested: `{}`".format(stats_summary["n_metrics_tested"]))
+    md_lines.append("- Significant after BH correction: `{} / {}`".format(stats_summary["n_significant_bh005"], stats_summary["n_metrics_tested"]))
+    md_lines.append("- Metrics favouring nnU-Net: `{} / {}`".format(stats_summary["n_nnunet_better"], stats_summary["n_metrics_tested"]))
+    md_lines.append("- Metrics favouring U-Net: `{} / {}`".format(stats_summary["n_unet_better"], stats_summary["n_metrics_tested"]))
+    md_lines.append("")
+    md_lines.append("## Main Pixel Metrics at Threshold 0.5")
+    md_lines.append("")
+    md_lines.extend(markdown_table(["Metric", "U-Net", "nnU-Net"], pixel_rows))
+    md_lines.append("")
+    md_lines.append("## Main Object Metrics")
+    md_lines.append("")
+    md_lines.extend(markdown_table(["Metric", "U-Net", "nnU-Net"], object_rows))
+    md_lines.append("")
+    md_lines.append("## GT-Positive Object Metrics")
+    md_lines.append("")
+    md_lines.extend(markdown_table(["Metric", "U-Net", "nnU-Net"], gp_rows))
+    md_lines.append("")
+    md_lines.append("## High-Dice Corner Cases")
+    md_lines.append("")
+    md_lines.append("- Rule: `Dice > 0.85` and (`obj_count_error > 4` or `merge_rate > 0` or `split_rate > 0`)")
+    md_lines.append(f"- U-Net usable cases: `{unet_cc['cases_usable']}`")
+    md_lines.append(f"- U-Net high-Dice cases: `{unet_cc['counts']['high_dice_cases']}`")
+    md_lines.append(f"- U-Net corner cases among usable cases: `{unet_cc['corner_cases']} / {unet_cc['cases_usable']} = {pct(unet_cc['corner_rate'], 2)}`")
+    md_lines.append(f"- U-Net corner cases among high-Dice cases: `{unet_cc['corner_cases']} / {unet_cc['counts']['high_dice_cases']} = {pct(unet_cc['corner_rate_of_high_dice'])}`")
+    md_lines.append(f"- nnU-Net usable cases: `{nnunet_cc['cases_usable']}`")
+    md_lines.append(f"- nnU-Net high-Dice cases: `{nnunet_cc['counts']['high_dice_cases']}`")
+    md_lines.append(f"- nnU-Net corner cases among usable cases: `{nnunet_cc['corner_cases']} / {nnunet_cc['cases_usable']} = {pct(nnunet_cc['corner_rate'], 2)}`")
+    md_lines.append(f"- nnU-Net corner cases among high-Dice cases: `{nnunet_cc['corner_cases']} / {nnunet_cc['counts']['high_dice_cases']} = {pct(nnunet_cc['corner_rate_of_high_dice'])}`")
+    md_lines.append("")
+    md_lines.append("## Stratified Analysis Highlights")
+    md_lines.append("")
+    quart_rows = []
+    for quartile in ["Q1 (low)", "Q2", "Q3", "Q4 (high)"]:
+        row = fg_quart[fg_quart["stratum"] == quartile].iloc[0]
+        quart_rows.append([
+            quartile,
+            f"{row['unet_dice_fg_t50_mean']:.3f}",
+            f"{row['nnunet_dice_fg_t50_mean']:.3f}",
+            f"{row['unet_pq_iou50_mean']:.3f}",
+            f"{row['nnunet_pq_iou50_mean']:.3f}",
+            f"{row['unet_split_rate_mean']:.3f}",
+            f"{row['nnunet_split_rate_mean']:.3f}",
+        ])
+    md_lines.extend(markdown_table(["Quartile", "Dice U-Net", "Dice nnU-Net", "PQ U-Net", "PQ nnU-Net", "Split U-Net", "Split nnU-Net"], quart_rows))
+    md_lines.append("")
+    md_lines.append(f"- In dense slices (`Q4`), Dice is close: `{q4['unet_dice_fg_t50_mean']:.3f}` vs `{q4['nnunet_dice_fg_t50_mean']:.3f}`.")
+    md_lines.append(f"- The object-level gap remains large in the same slices: PQ `{q4['unet_pq_iou50_mean']:.3f}` vs `{q4['nnunet_pq_iou50_mean']:.3f}`, split rate `{q4['unet_split_rate_mean']:.3f}` vs `{q4['nnunet_split_rate_mean']:.3f}`.")
+    md_lines.append("")
+    md_lines.append("## Bottom Line")
+    md_lines.append("")
+    md_lines.append("- The current connected-component evaluation preserves the ranking: nnU-Net remains better across the tested metrics.")
+    md_lines.append("- The stratified results show that high voxel overlap in dense slices still understates the object-level gap.")
+
+    txt_path = r / args.txt_name
+    md_path = r / args.md_name
+    txt_path.write_text("\n".join(txt_lines) + "\n")
+    md_path.write_text("\n".join(md_lines) + "\n")
+
+    print(f"Written: {txt_path}")
+    print(f"Written: {md_path}")
+
+if __name__ == "__main__":
+    main()
