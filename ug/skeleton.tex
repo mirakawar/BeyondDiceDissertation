@@ -61,16 +61,15 @@
 
 \abstract{
 Deep learning models for mitochondria segmentation in electron microscopy (EM)
-images are routinely evaluated using the Dice similarity coefficient, a
-pixel-level overlap metric that is convenient but insensitive to biologically
-significant failure modes such as object merges, splits, and incorrect
-object counts. This dissertation presents a standardised evaluation pipeline
-comparing a custom U-Net and the self-configuring nnU-Net framework on the
-CEM-MitoLab dataset (EMPIAR-11037), a heterogeneous collection of 21,871
-annotated 2D EM image slices spanning multiple organisms, cell types, and
-imaging modalities. Both models are trained and evaluated using a shared
-biological source-level split and common evaluation setup, with a stratified
-70/15/15 train/validation/test partition.
+images are routinely evaluated using the Dice similarity coefficient and other
+voxel-level overlap metrics. These measures are convenient pixel-level
+summaries, but they are insensitive to biologically significant failure modes
+such as object merges, splits, and incorrect object counts. This dissertation
+presents a standardised evaluation pipeline for comparing a custom U-Net and
+the self-configuring nnU-Net framework on CEM-MitoLab (EMPIAR-11037). The
+dataset contains 21,871 annotated 2D EM image slices spanning multiple
+organisms, cell types, and imaging modalities. Both models are trained and evaluated using a shared
+ biological source-level split and common evaluation setup.
 
 The study examines three related questions: whether standard voxel-level
 metrics can understate biologically important performance differences, whether
@@ -79,10 +78,11 @@ modes such as merges and splits, and whether apparently strong overlap scores
 can still conceal biologically important errors. To address this, the
 evaluation combines voxel-level metrics with object-level metrics derived from
 the instance-labelled ground truth, with corner-case and stratified
-analyses. The main methodological contribution is a reproducible evaluation
-framework that enables a controlled comparison between a custom architecture and
-nnU-Net while exposing failure modes that overlap metrics alone can conceal.
-The custom U-Net is outperformed by nnU-Net on most
+analyses. Its main methodological contribution is to show how a shared
+evaluation framework can expose failure modes that overlap metrics alone can
+conceal.
+
+The nnU-Net outperforms the custom U-Net on most
 voxel-level and object-level metrics (mean foreground Dice 0.578 vs.\ 0.624;
 mean Panoptic Quality 0.459 vs.\ 0.544), but both models still exhibit biologically relevant
 errors among apparently strong predictions. Elevated object-level error remained common even among
@@ -125,12 +125,13 @@ unwavering support, care, and generosity. I appreciate it more than words can ex
 
 Mitochondria are essential organelles that support cellular energy production,
 cell survival, and metabolic regulation. Their morphology, including
-size, shape, and overall organisation, is closely linked to cellular function.
+size, shape, and overall organisation, is closely linked to cellular function
+\citep{SuomalainenNunnari2024Cell}.
 Disruption of mitochondrial structure is implicated in a range of severe
 diseases, including Parkinson's disease, Alzheimer's disease, diabetes, and
 cancer \citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}. Accurate,
 large-scale quantification of mitochondrial morphology in biological tissue
-therefore has direct relevance to both basic cell biology and translational
+therefore has direct relevance to both basic cell biology and biomedical
 research.
 
 Electron microscopy (EM) is widely used to observe
@@ -156,7 +157,7 @@ single mitochondrion into multiple predicted components, merging adjacent
 mitochondria into one, or misestimating the total number of
 mitochondria in a field of view. Such errors directly distort downstream
 biological analyses of organelle count, size distribution, and spatial
-organisation \citep{SuomalainenNunnari2024Cell, tilokani2018mitochondrial}.
+organisation \citep{SuomalainenNunnari2024Cell, wei2020mitoem, conrad2023instance}.
 
 This dissertation investigates whether standard voxel-level metrics are
 sufficient for comparing segmentation models in a biology-facing setting. The
@@ -181,7 +182,7 @@ relevant failure modes do they fail to capture?}
 
 \section{Overview of Findings}
 
-The current evaluation shows that nnU-Net is the stronger model overall on the
+The evaluation shows that nnU-Net is the stronger model overall on the
 unseen test set, outperforming the custom U-Net across the main voxel-level,
 boundary, calibration, and object-level metrics. At the default threshold,
 mean foreground Dice is 0.578 for U-Net and 0.624 for nnU-Net, and mean
@@ -260,16 +261,15 @@ segmentations that remain reliable for object-level biological analysis
 
 \section{Dataset Choice}
 
-Smaller datasets such as Lucchi
-and the re-annotated Lucchi++ benchmark have been useful for benchmarking. However, they
-do not challenge model robustness strongly because reported overlap scores on them are already
-high and they cover a comparatively narrow range of biological sources, 
-imaging conditions, and mitochondrial appearances
-\citep{lucchi2012supervoxel, casser2020fast, franco-barranco2022stable,
-conrad2023instance}. Their main strength is that they support clean,
-repeatable benchmarking with relatively stable labels. Their main weakness is
-scope: success on Lucchi-style data is not strong evidence of robustness across
-imaging conditions or mitochondrial morphologies.
+Smaller datasets such as Lucchi and the re-annotated Lucchi++ benchmark have
+been useful for benchmarking. Their main strength is that they support clean,
+repeatable comparisons with relatively stable labels. Their main weakness is
+limited scope: reported overlap scores on these datasets are already high, and
+they cover a comparatively narrow range of biological sources, imaging
+conditions, and mitochondrial appearances. Success on Lucchi-style data
+therefore provides only limited evidence of robustness across more diverse
+settings \citep{lucchi2012supervoxel, casser2020fast,
+franco-barranco2022stable, conrad2023instance}.
 
 MitoEM presents a more challenging benchmark for the specific failure modes 
 considered in this dissertation. Its authors report
@@ -285,14 +285,15 @@ pipelines behave across varied sources.
 
 CEM-MitoLab is the most relevant dataset in this comparison because it was
 constructed as a deliberately heterogeneous mitochondria benchmark, combining
-legacy labels and crowdsourced annotations into 21,871
-annotated 2D images containing 135,285 mitochondrial instances from varied
-image sizes, resolutions, imaging techniques, cells, tissues, and organisms
-\citep{conrad2023instance}. That breadth is a strength because it makes the
-comparison less dependent on a single narrow imaging
-regime. The trade-off is that heterogeneity also introduces greater variation
-in label style, image quality, and local difficulty, so raw overlap scores are
-harder to interpret in isolation.
+legacy labels and crowdsourced annotations. The published dataset description
+reports 21,860 annotated 2D images \citep{conrad2023instance}, whereas the
+local copy used in this dissertation contained 21,871 images. These images
+contain 135,285 mitochondrial instances drawn from varied image sizes,
+resolutions, imaging techniques, cells, tissues, and organisms. That breadth
+is a strength because it makes the comparison less dependent on a single narrow
+imaging regime. The trade-off is that heterogeneity also introduces greater
+variation in label style, image quality, and local difficulty, so raw overlap
+scores are harder to interpret in isolation.
 
 \section{Segmentation Approaches in the Literature}
 
@@ -310,34 +311,33 @@ convolutional network designed for dense biomedical image segmentation. The
 contracting path extracts increasingly abstract features, while the expanding
 path upsamples those features back toward the input resolution. Skip
 connections link corresponding encoder and decoder stages so that fine spatial
-detail is preserved during reconstruction. This combination of local detail and
-global context is one reason U-Net became so influential in biomedical
-segmentation \citep{ronneberger2015unet, aswath2023segmentation}.
+detail is preserved during reconstruction. These design choices helped make
+U-Net a standard baseline in biomedical segmentation
+\citep{ronneberger2015unet, aswath2023segmentation}.
 
-For mitochondria segmentation, U-Net is especially relevant because EM images
-contain thin boundaries, ambiguous textures, and tightly packed structures.
-U-Net variants also remain common in mitochondria segmentation papers, including
+For mitochondria segmentation, U-Net remains relevant because its variants
+still appear widely in mitochondria segmentation papers, including
 real-time 2D systems, boundary-aware 3D pipelines, and more recent automated
 EM segmentation workflows \citep{casser2020fast, wei2020mitoem,
 jang2025deep}. One major strength of U-Net is that it is clear, well
 understood, and easy to adapt. At the same time, a reported ``U-Net baseline'' is often less standard than
 it appears. Patch size, normalisation, augmentation, loss weighting, and
-optimisation can all change performance substantially, so improvements over a
-U-Net baseline sometimes reflect differences in training setup and tuning, not
-just differences in model design \citep{isensee2021nnu,
+optimisation can all change performance substantially. Improvements over a
+U-Net baseline sometimes reflect differences in training setup, tuning, and
+implementation choices \citep{isensee2021nnu,
 franco-barranco2022stable}.
 
 There is also a task-specific limitation. Standard U-Net predicts a semantic
-foreground mask rather than explicit object instances. Separate mitochondria can
-be recovered afterwards with connected-component analysis or other
-post-processing, but the network itself is not designed to preserve object
-identity. Merge and split errors therefore remain an expected failure mode even
-when pixel overlap is strong \citep{wei2020mitoem, conrad2023instance}.
+foreground mask. Separate mitochondria can be recovered afterwards with
+connected-component analysis or other post-processing, but the network itself
+does not preserve object identity. Merge and split errors therefore remain an
+expected failure mode even when pixel overlap is strong
+\citep{wei2020mitoem, conrad2023instance}.
 
 \subsection{nnU-Net as an Automated Baseline}
 
-nnU-Net, introduced by \citet{isensee2021nnu}, is best understood as a
-self-configuring segmentation framework rather than a single fixed model. It
+nnU-Net, introduced by \citet{isensee2021nnu}, is a
+self-configuring segmentation framework. It is not a single fixed model. It
 starts from a dataset fingerprint, including image size, spacing, class balance,
 and intensity statistics, and uses a set of heuristic rules to choose the
 preprocessing pipeline, architecture configuration, patch size, training
@@ -349,16 +349,16 @@ The main strength of nnU-Net is standardisation. It reduces the number of manual
 design choices that can quietly shape performance and has become a widely used
 reference point in biomedical segmentation because it performs strongly across a
 large range of tasks \citep{isensee2021nnu}. It is therefore important in the
-current literature both as a practical tool and as an argument that a large
-share of segmentation performance comes from sound engineering decisions rather
-than from increasingly specialised architectures alone \citep{isensee2021nnu}.
+current literature both as a practical tool and as evidence that a large share
+of segmentation performance comes from proper engineering decisions
+\citep{isensee2021nnu}.
 
 nnU-Net also has limitations. It can be computationally heavy, especially in
 its full five-fold ensemble form, and it is still usually judged by benchmark
 overlap scores. High semantic segmentation accuracy under that standard does not
 necessarily mean that individual mitochondria are segmented in a way that
 preserves correct counts, boundaries, or separation between neighbouring
-objects \citep{isensee2021nnu, wei2020mitoem, conrad2023instance}.
+objects \citep{wei2020mitoem, conrad2023instance}.
 
 \subsection{Instance-Aware Methods and What They Show}
 
@@ -366,23 +366,20 @@ A substantial part of the mitochondria segmentation literature moves beyond
 binary semantic masks and targets instance separation directly. This is usually
 done with pipelines that predict masks, boundaries, or auxiliary shape cues and
 then apply post-processing to recover individual instances
-\citep{wei2020mitoem, conrad2023instance}. These methods are important
-mainly for what they show about the task: separating individual mitochondria is
-not the same problem as recovering foreground pixels. Their role in this chapter
-is therefore motivational rather than comparative. They help justify the need
-for object-level evaluation, but they are not used as direct baselines in this
-dissertation. Many such methods change the supervision target, task
-formulation, dimensional setting, or post-processing pipeline, which would make
-the comparison less controlled than the semantic-baseline comparison.
+\citep{wei2020mitoem, conrad2023instance}. These methods matter here because
+they show that separating individual mitochondria is a different problem from
+recovering foreground pixels. In this chapter they serve mainly as motivation
+for object-level evaluation, not as direct baselines. Many such methods change
+the supervision target, task formulation, dimensional setting, or
+post-processing pipeline, so they would not support a controlled
+semantic-baseline comparison.
 
 \citet{wei2020mitoem} make this point well through the U3D-BC and U3D-BC+MW pipelines,
 which combine a boundary-aware 3D U-Net with marker-controlled watershed
 post-processing. These models are effective because they explicitly target
-touching mitochondria rather than treating all foreground as one class. This is relevant to the
+touching mitochondria and do not treat all foreground as one class. This is relevant to the
 present dissertation because it demonstrates that strong semantic overlap alone
-is insufficient to guarantee accurate recovery of individual objects. At the
-same time, such methods
-introduce additional supervision targets and post-processing dependencies.
+is insufficient to guarantee accurate recovery of individual objects. 
 
 \citet{conrad2023instance} make a similar contribution through MitoNet, a generalist
 instance segmentation model built on Panoptic-DeepLab
@@ -411,8 +408,9 @@ state of the field. One direction aims for broader generalisation. For example,
 organelle segmentation across tissues, while \citet{huang2025generalist}
 emphasise a generalist deep-learning segmentation tool for volume electron
 microscopy. This line of work addresses a real weakness in older benchmark
-culture: models that look strong on one curated dataset may not transfer well.
-This line of work is more relevant to questions of generalisation and practical 
+culture: models that look strong on one curated dataset may perform much less
+reliably on data from different biological sources or imaging conditions.
+It is therefore more relevant to questions of generalisation and practical
 usability than to the evaluation of biological reliability.
 
 A second direction is increasing task sophistication. Papers such as
@@ -431,7 +429,7 @@ application-specific engineering. This literature demonstrates the level of
 performance achievable in well-resourced settings. However, it does not provide 
 a close methodological template for the present comparison because it often 
 combines multiple organelles, 3D context, and highly customised workflows. These papers
-are best read as context for the field rather than as direct baselines for a
+mainly provide background context for the field. They are not strong direct baselines for a
 mitochondria-specific comparison. They show where the field is moving, but they
 do not provide a clean basis for judging whether two semantic
 mitochondria-segmentation pipelines differ in biologically meaningful ways.
@@ -450,8 +448,8 @@ Precision, recall, and boundary-sensitive measures such as HD95 provide
 additional detail about false positives, false negatives, and local contour
 error \citep{taha2015metrics}.
 
-For a predicted mask $P$ and ground-truth mask $G$, the Dice similarity
-coefficient is defined as:
+The Dice similarity coefficient for a predicted mask $P$ and ground-truth mask
+$G$ is defined as:
 \[
 \text{Dice} = \frac{2 |P \cap G|}{|P| + |G|}
 \]
@@ -473,8 +471,8 @@ way Dice alone does not \citep{taha2015metrics}.
 
 These metrics are useful, but they all describe agreement at the pixel
 level. On their own, they do not show whether the model has recovered the
-correct mitochondria as distinct objects \citep{taha2015metrics,
-wei2020mitoem, conrad2023instance}.
+correct mitochondria as distinct objects \citep{wei2020mitoem,
+conrad2023instance}.
 
 Comparison is also complicated because Dice can be aggregated in several valid
 ways and can change with thresholding or post-processing choices. It may refer
@@ -489,9 +487,7 @@ usually easier to satisfy, especially in sparse images, so it is useful mainly
 for checking whether performance is being inflated by the dominance of
 background pixels. Mean Dice averages the two classes, which can be convenient
 as a balanced summary but may still hide the fact that foreground quality is
-the harder part of the task. IoU, precision, and recall provide a stricter and
-more diagnostic view of the same predictions, especially by separating
-over-prediction from under-prediction \citep{taha2015metrics}.
+the harder part of the task.
 
 \section{Why Overlap Metrics Are Not Enough}
 
@@ -512,31 +508,30 @@ parts, counts increase and morphology statistics become unreliable. These two
 errors can have opposite biological implications while still producing broadly
 similar overlap scores. Dice and IoU therefore answer only part of the question.
 They tell us how well foreground pixels match, but not whether the model has
-preserved the object structure that many biological analyses rely on. The
-relevant criticism is not that overlap metrics are useless, but that they
-are incomplete for biology-facing evaluation \citep{wei2020mitoem,
+preserved the object structure that many biological analyses rely on \citep{wei2020mitoem,
 conrad2023instance}.
 
 The presented voxel-level evaluation also examines threshold sensitivity by repeating foreground
 Dice across several binarisation thresholds. This is useful because a model can
 appear strong at the default threshold while depending on unusually fragile
-probability calibration \citep{guo2017calibration}. In this work, threshold sensitivity is treated
-as a practical robustness check rather than a standard literature metric. If a
+probability calibration \citep{guo2017calibration}. In this work, threshold sensitivity serves
+as a practical robustness check. It is not intended as a standard literature metric. If a
 model's apparent quality changes sharply under small threshold adjustments, that
-makes its headline overlap score harder to trust in use. This is not a
-replacement for other metrics, but it helps distinguish models whose reported
+makes its headline overlap score harder to trust in use. It helps distinguish models whose reported
 overlap is stable from those whose apparent quality is threshold-dependent.
 
 \section{Object-Level Metrics and What They Add}
 
-Object-level metrics address this gap by evaluating predicted instances rather
-than only predicted foreground pixels. Merge rate and split rate directly expose
-the two topological error modes that matter most for this dissertation. Object
+Object-level metrics address this gap by evaluating predicted instances
+directly. They go beyond foreground-pixel agreement alone. Merge rate shows
+how often distinct ground-truth mitochondria are fused into one prediction,
+while split rate shows how often one ground-truth mitochondrion is broken into
+multiple predicted objects. Connectivity error combines these two failure modes
+into a single topology summary. Object
 count error measures the practical consequence of those failures for
 count-based analysis. Panoptic Quality (PQ) goes further by combining detection
 and segmentation quality into a stricter instance-level summary
-\citep{wei2020mitoem, conrad2023instance, cheng2020panopticdeeplab,
-kirillov2019panoptic}.
+\citep{kirillov2019panoptic}.
 
 In its standard form,
 \[
@@ -549,40 +544,37 @@ In its standard form,
 \frac{|\mathrm{TP}|}{|\mathrm{TP}| + \frac{1}{2}|\mathrm{FP}| + \frac{1}{2}|\mathrm{FN}|}
 }_{\text{Detection Quality (DQ)}}
 \]
-so it rewards not only accurate overlaps for matched instances, but also
-penalises missing and false objects. This makes PQ less forgiving than
+so it reflects overlap quality for matched instances while also penalising
+missing and false objects. This makes PQ less forgiving than
 pixel-level Dice because missing and false instances are penalised directly
 \citep{kirillov2019panoptic}.
 
 Compared with Dice or IoU, these metrics ask a harder and more relevant
-question: not just whether a segmentation overlaps the target, but whether it
-recovers the right mitochondria as distinct biological objects. 
+question: whether the segmentation recovers the right mitochondria as distinct
+biological objects and preserves separations between them. 
 They prove useful when two models appear similar on
 overlap metrics but differ in how often they merge or fragment neighbouring
 organelles. This makes them well suited to the central comparison in this
 dissertation.
 
-Some of the object metrics used this work are more diagnostic than others. Matched
+Some of the object metrics used in this work are more diagnostic than others. Matched
 instance IoU measures how well the predicted objects that do correspond to real
 mitochondria overlap their targets once matching has been established. 
 It separates the quality of matched objects from the problem of
 missing or extra objects. Object precision and object recall at multiple IoU
-thresholds make this stricter or looser in a controlled way: low thresholds ask
+thresholds make this looser or stricter in a controlled way: low thresholds ask
 whether the right objects were found at all, while high thresholds ask whether
 they were recovered accurately enough to support closer biological inspection.
-These thresholded object measures reveal whether one model's apparent
-advantage depends on forgiving or stringent matching.
 
 These metrics also have limitations. Count error is easy to interpret, but it
 does not explain why the count is wrong. Merge and split rates are highly
 diagnostic, but less standardised across papers than Dice or IoU. PQ is less
 forgiving than Dice, but it still depends on a matching threshold and
 compresses multiple behaviours into one number. The implication is not that any
-single object metric solves evaluation on its own. Rather, object-level metrics
+single object metric solves evaluation on its own. Object-level metrics
 provide the missing evidence needed to interpret whether strong semantic scores
 actually correspond to biologically reliable predictions
-\citep{wei2020mitoem, kirillov2019panoptic, conrad2023instance,
-cheng2020panopticdeeplab}. 
+\citep{wei2020mitoem, conrad2023instance}. 
 
 \section{Boundary and Calibration Metrics}
 
@@ -593,8 +585,8 @@ expose different weaknesses in model behaviour
 
 HD95 captures large boundary deviations while reducing sensitivity to single
 extreme outliers, which makes it useful for detecting contour errors that Dice
-or IoU can miss \citep{taha2015metrics}. Boundary F1 (BF1) complements this by
-asking how much of the predicted and true boundary lies within a chosen tolerance
+or IoU can miss \citep{taha2015metrics}. Boundary F1 (BF1) measures
+how much of the predicted and true boundary lies within a chosen tolerance
 band \citep{martin2001segmentation}. In this work, 2px and 5px are used
 as stricter and more forgiving views of contour accuracy. These metrics are more sensitive 
 to boundary quality than overlap scores alone.
@@ -606,8 +598,9 @@ makes threshold choice and uncertainty interpretation less reliable.
 
 \section{The Full Metric Set Used in This Dissertation}
 
-The evaluation therefore combines several metric groups rather than
-relying on a single headline score. The full evaluated set is chosen to answer
+The evaluation therefore combines several metric groups. A single headline
+score would not answer the dissertation's questions adequately. The full
+evaluated set is chosen to answer
 the dissertation's three aims: compare semantic overlap, assess contour and
 confidence quality, and expose object-level biological failures that Dice alone
 can hide.
@@ -623,18 +616,18 @@ from misplaced or coarse boundaries even when pixel overlap remains high.
 
 \item \textbf{Calibration and threshold robustness:} ECE and foreground Dice at
 thresholds 0.3, 0.4, 0.5, 0.6, and 0.7. ECE tests whether predicted
-probabilities are trustworthy, while the threshold sweep checks whether the
+probabilities are trustworthy, while the threshold analysis checks whether the
 apparent model ranking depends strongly on a single operating point. The
 threshold is the prediction cutoff used to binarise the probability map before
 Dice is recomputed.
 
-\item \textbf{Object recovery and topology:} This family includes GT objects
-per image, predicted objects per image, absolute count error, signed count
-error, merge events, split events, merge rate, split rate, and connectivity
-error. It also includes mean matched IoU, Panoptic Quality at IoU $> 0.5$, and
-object precision/recall at IoU thresholds 0.3, 0.5, 0.7, and 0.9. These are
+\item \textbf{Object recovery and topology:} GT objects per image, predicted
+objects per image, absolute count error, signed count error, merge events,
+split events, merge rate, split rate, connectivity error, mean matched IoU,
+Panoptic Quality at IoU $> 0.5$, and object precision/recall at IoU thresholds
+0.3, 0.5, 0.7, and 0.9. These are
 included because the biology-facing task depends on recovering distinct
-mitochondria rather than only foreground area. The threshold is the
+mitochondria as objects, not only on measuring foreground area. The threshold is the
 object-match IoU criterion used after object recovery to decide whether a
 predicted object counts as correctly recovered.
 
@@ -642,8 +635,8 @@ predicted object counts as correctly recovered.
 \item \textbf{Failure diagnostics beyond scalar metrics:} zero-Dice slice
 counts, completely missed GT-positive slices, false positives on GT-empty
 slices, the high-Dice corner-case diagnostic, and stratified summaries by
-foreground-density quartile. These are included to make specific failure
-patterns visible rather than leaving them hidden inside averages.
+foreground-density quartile. These are included so that specific failure
+patterns remain visible in the analysis.
 \end{itemize}
 
 The full evaluated set is broader than the subset of 27 paired per-image
@@ -655,13 +648,13 @@ reported quantities are treated as descriptive diagnostics.
 
 \section{Gap Addressed by This Dissertation}
 
-The literature establishes that U-Net-style semantic models remain widely used,
-that nnU-Net is a strong self-configuring baseline, and that overlap metrics
-such as Dice remain the dominant reporting standard. What is still missing is a
-controlled comparison between semantic models that tests whether overlap metrics
-alone are sufficient for biology-facing evaluation \citep{ronneberger2015unet,
-isensee2021nnu, franco-barranco2022stable, wei2020mitoem,
-conrad2023instance}.
+The literature establishes that U-Net-style semantic models remain widely used
+and that nnU-Net is a strong self-configuring baseline
+\citep{ronneberger2015unet, isensee2021nnu}. It also shows that overlap metrics
+such as Dice remain the dominant reporting standard and may be insufficient for
+biology-facing evaluation \citep{franco-barranco2022stable, wei2020mitoem,
+conrad2023instance}. What is still missing is a controlled comparison between
+semantic models under a shared evaluation setup.
 
 Across the papers discussed above, model comparisons are often made under
 different supervision setups, datasets, dimensionalities, or evaluation
@@ -690,7 +683,9 @@ object-recovery and evaluation procedure, while model-specific internals are
 allowed to differ.
 
 The experimental setup is defined first at the level of the data split. Although CEM-MitoLab consists of
-individual 2D EM slices, these slices come from larger biological sources. To
+individual 2D EM slices, these slices come from larger biological sources. A \emph{biological source} 
+refers to the source-level unit from which multiple related slices may be drawn, 
+for example a single specimen or imaging source such as one cell or tissue sample. To
 prevent closely related images from appearing in multiple partitions, the train,
 validation, and test sets are defined at the source level and then expanded to
 slice level for model training and evaluation.
@@ -703,12 +698,11 @@ calibration metrics. Second, their binary outputs are converted into recovered
 object sets by connected-component labelling, so that the same predictions can
 also be assessed at the level of individual mitochondria.
 
-Other factors are model-specific rather than standardised,
-including architecture, batch size, optimiser behaviour, and nnU-Net's
-automatically selected configuration. The aim is not to make the pipelines
-identical, but to control the comparison closely enough that observed
-differences can be attributed to model behaviour rather than to differences in
-data handling or evaluation.
+Other factors remain model-specific, including architecture, batch size,
+optimiser behaviour, and nnU-Net's automatically selected configuration. The
+aim is not to make the pipelines identical. Instead, the comparison is
+controlled closely enough that observed differences can be interpreted as model
+behaviour, not as artifacts of data handling or evaluation.
 
 \section{System Pipeline}
 
@@ -717,7 +711,7 @@ training and inference branches, and a common evaluation stage. The shared infra
 written for this project includes dataset conversion, split synchronisation, prediction export, 
 and the evaluation code. Separate custom code was also developed for U-Net training and inference, 
 while nnU-Net itself was used as an external package without modification to its core training logic. 
-This is shown in fig\ref{fig:method-pipeline}. The main implementation effort therefore lay in building a consistent comparison pipeline around 
+This is shown in Figure \ref{fig:method-pipeline}. The main implementation effort therefore lay in building a consistent comparison pipeline around 
 the two models.
 
 \begin{figure}[ht]
@@ -767,11 +761,7 @@ object-level evaluation.
 
 
 Table~\ref{tab:split-summary} summarises the final split used throughout the
-dissertation. A \emph{biological source} refers to the source-level unit
-from which multiple related slices may be drawn, for example a single specimen
-or imaging source such as one cell or tissue sample. All source assignment is
-completed before slice counts are expanded, so no biological source contributes
-images to more than one partition.
+dissertation. 
 
 \begin{table}[H]
 \centering
@@ -814,9 +804,9 @@ normalisation and rectified linear unit (ReLU) activations
 model trains with a batch size of 4, for which batch-normalisation statistics
 are unstable.
 
-To make the comparison closer to nnU-Net, the U-Net now predicts two classes
+To align the U-Net training objective with nnU-Net's standard formulation, the model predicts two classes
 (background and mitochondria) and is trained with a combined cross-entropy plus
-soft Dice objective. For a training set of $N$ pixels, with class probability
+soft Dice objective. For a training batch of $N$ pixels, with class probability
 $p_{i,c}$ and target label $y_{i,c}$ for pixel $i$ and class $c$, the
 cross-entropy term is
 \[
@@ -825,7 +815,7 @@ cross-entropy term is
 For the foreground class alone, the soft Dice loss is
 \[
 \mathcal{L}_{\mathrm{Dice}} =
-1 - \frac{2 \sum_{i=1}^{N} p_i y_i + \varepsilon}
+- \frac{2 \sum_{i=1}^{N} p_i y_i + \varepsilon}
 {\sum_{i=1}^{N} p_i + \sum_{i=1}^{N} y_i + \varepsilon},
 \]
 where $p_i$ and $y_i$ denote the predicted foreground probability and the
@@ -835,11 +825,10 @@ binary foreground label, respectively. The total training objective is
 \]
 This combined objective follows the standard nnU-Net formulation and the common
 soft Dice approach used in biomedical segmentation \citep{isensee2021nnu,
-milletari2016vnet}. The Dice term is applied only to the foreground class, so
-the training setup remains close to that of nnU-Net. During training and validation, the reported
-Dice is also aligned with nnU-Net: it is computed from epoch-level hard
-true-positive, false-positive, and false-negative counts rather than as a mean
-of per-image Dice values.
+milletari2016vnet}. The Dice term is applied only to the foreground class. The
+reported training and validation Dice is computed from epoch-level hard
+true-positive, false-positive, and false-negative counts. It is not reported as
+a mean of per-image Dice values.
 
 \subsection{nnU-Net}
 
@@ -888,7 +877,7 @@ Activation
 & Leaky rectified linear unit activations \\
 Loss
 & Combined cross-entropy and soft Dice objective
-& Combined cross-entropy and Dice objective \\
+& Combined cross-entropy and soft Dice objective \\
 Batch size
 & 4
 & 12 \\
@@ -905,21 +894,17 @@ Probability export
 
 The custom pipeline was implemented in Python using PyTorch
 \texttt{2.10.0+cu128}, with GPU execution through CUDA under SLURM. nnU-Net was used through its
-v2.6 command-line interface as an external package rather than a modified code
-fork. Both training pipelines were run as single-GPU jobs, primarily on an
+v2.6 command-line interface as an external package, and its core code was left
+unchanged. Both training pipelines were run as single-GPU jobs, primarily on an
 NVIDIA GeForce RTX 2080 Ti (11\,GB VRAM), with 32\,GB RAM and two CPU workers.
 
 \subsection{Training Procedure}
 
 Both models were trained on the same fixed training and validation split, and
 model selection was validation-based. During training, each pipeline tracked a
-Dice-style validation summary to monitor progress, but this quantity was used
-only as a training signal and not as a final test-set metric. In nnU-Net, the
-per-epoch validation log reports pseudo-Dice, while checkpoint selection uses
-its exponential moving average (EMA pseudo-Dice) \citep{isensee2021nnu}. For
-comparability, the custom U-Net also reports a Dice-style validation summary
-based on epoch-level foreground counts rather than a mean of per-image Dice
-scores.
+Dice-style validation summary to monitor progress. This quantity was used only
+for training-time monitoring and model selection, not as a final test-set
+metric.
 
 \subsubsection{U-Net}
 
@@ -937,22 +922,22 @@ contrast changes, and additive Gaussian noise.
 \subsubsection{nnU-Net}
 
 nnU-Net was trained in its standard configuration for this dataset for the full
-1,000-epoch schedule.
-Validation-time probability outputs were retained during training, and the
+1,000-epoch schedule. Its per-epoch validation log reports pseudo-Dice, while
+checkpoint selection uses the exponential moving average (EMA pseudo-Dice)
+\citep{isensee2021nnu}. Validation-time probability outputs were retained
+during training, and the
 final test-time probability outputs were exported separately during inference
 for the later calibration and threshold-sensitivity analyses.
 
 \subsection{Model Prediction on the Test Set}
 
-Prediction on the test set is run as a separate stage so that both models are
-applied to the same unseen raw test images before entering the shared final
-evaluation pipeline. For the custom U-Net, the best validation checkpoint is
-applied to the 3,312 test cases. Then, the shared default threshold of 0.5 is used
+For the custom U-Net, the best validation checkpoint is applied to the
+test cases. The shared default threshold of 0.5 is then used
 to binarise the foreground probability map, and both binary masks and
 compressed probability arrays are exported. U-Net test inference uses raw TIFF
 images with z-score normalisation to match training as closely as possible.
 
-For nnU-Net, the selected test-time checkpoint is applied to the same held-out
+For nnU-Net, the selected test-time checkpoint is applied to the same test
 images, and both binary masks and probability maps are retained for the shared
 evaluation stage. 
 
@@ -972,9 +957,9 @@ over the full test set and over the 2,694 GT-positive slices
 that contain at least one mitochondrion in the ground truth. This distinction
 is important because empty slices make some predictions easy and would
 otherwise blur differences in foreground and object-level behaviour. For
-foreground-only overlap metrics, empty-empty slices are treated as undefined
-rather than as perfect foreground matches, so they are excluded automatically
-from those aggregate summaries.
+foreground-only overlap metrics, empty-empty slices are treated as undefined.
+They are excluded automatically instead of being counted as perfect foreground
+matches in the aggregate summaries.
 
 \subsection{Voxel-Level Metrics}
 
@@ -983,9 +968,10 @@ Voxel-level metrics are computed at foreground thresholds
 foreground Dice, background Dice, mean Dice, IoU, precision, recall, HD95, and
 boundary F1 at 2-pixel and 5-pixel tolerance. HD95 is computed from the distances 
 between predicted and ground-truth boundary pixels, using Euclidean distance 
-transforms, rather than from all pixels in the mask. Empty-empty slices are
-assigned HD95~=~0, whereas slices where exactly one mask is empty are treated
-as non-finite for HD95 and excluded from finite-case summaries.
+transforms. The calculation is therefore based on boundary pixels, not all
+pixels in the mask. For HD95 specifically, empty-empty slices are assigned
+HD95~=~0, whereas slices where exactly one mask is empty are treated as
+non-finite and excluded from finite-case summaries.
 Expected Calibration Error (ECE) is computed from the probability maps using
 15 bins. Threshold 0.5 is treated as the default operating point, and the
 surrounding thresholds are used for the threshold-sensitivity analysis.
@@ -1015,7 +1001,7 @@ object count error greater than 4, merge rate greater than 0, or split rate
 greater than 0. Reported corner-case rates are shown both across all usable
 slices, where foreground Dice is defined, and across the high-Dice subset
 itself. Because empty-empty slices are excluded from foreground-Dice summaries,
-all high-Dice slices in the current evaluation are GT-positive. 
+all high-Dice slices in the evaluation are GT-positive. 
 
 \subsection{Statistical Testing}
 
@@ -1086,8 +1072,10 @@ the default threshold of 0.5.
 \caption{U-Net voxel-level metrics at threshold~0.5 on the test set.
   \emph{All}: aggregate over the 3,312-case test set; \emph{GT$+$}:
   GT-positive cases only (2,694 cases). Foreground-only overlap metrics exclude
-  empty-empty slices, where foreground overlap is undefined.}
+  empty-empty slices, where foreground overlap is undefined. HD95 is reported
+  over finite cases only.}
 \label{tab:unet-voxel}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lcccc@{}}
 \toprule
  & \multicolumn{2}{c}{\textbf{All}}
@@ -1112,10 +1100,13 @@ BF1 (2\,px)  & $0.626 \pm 0.355$ & $0.748\ [0.386{-}0.915]$
              & $0.599 \pm 0.328$ & $0.712\ [0.392{-}0.859]$ \\
 BF1 (5\,px)  & $0.681 \pm 0.362$ & $0.839\ [0.491{-}0.973]$
              & $0.667 \pm 0.340$ & $0.804\ [0.496{-}0.929]$ \\
+HD95 (finite) & $47.2 \pm 68.8$ & $18.5\ [2.2{-}63.1]$
+             & $56.1 \pm 71.7$ & $29.9\ [6.7{-}78.6]$ \\
 ECE          & $0.020 \pm 0.033$ & $0.009\ [0.002{-}0.025]$
              & $0.023 \pm 0.035$ & $0.013\ [0.005{-}0.028]$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 At threshold~0.5, the U-Net mean
@@ -1128,9 +1119,7 @@ foreground often corresponds to mitochondria that are only partially recovered,
 or missed entirely.
 
 HD95 is undefined on 438 images (13.2\%). Over the remaining 2,874 finite
-cases, the mean HD95 is 47.2\,px and the median is 18.5\,px. In the current
-evaluation, HD95 is assigned 0 when both masks are empty and becomes
-non-finite only when exactly one mask is empty. For U-Net, the 438 non-finite
+cases, the mean HD95 is 47.2\,px and the median is 18.5\,px. For U-Net, the 438 non-finite
 cases therefore correspond to 278 completely missed GT-positive slices and 160
 GT-empty false positives. The gap between the mean and median indicates that
 most predictions are much closer to the boundary than the mean alone suggests.
@@ -1148,8 +1137,7 @@ pixels.
 Table~\ref{tab:unet-threshold} reports U-Net voxel metrics at five probability
 thresholds spanning the range 0.30--0.70. Overlap and boundary metrics are
 reported as mean $\pm$ standard deviation across the 3,312 test cases, while
-HD95 uses the per-threshold median to avoid inflation by the cases that are
-undefined at each threshold.
+HD95 is reported over the finite cases at each threshold.
 
 \begin{table}[H]
 \centering
@@ -1158,8 +1146,8 @@ undefined at each threshold.
 \setlength{\tabcolsep}{3pt}
 \caption{U-Net voxel metrics at five probability thresholds. Foreground-only
   overlap and boundary metrics are reported as mean $\pm$ standard deviation
-  over the cases where they are defined; HD95 is reported as the median of
-  finite cases only.}
+  over the cases where they are defined; HD95 is also reported as mean $\pm$
+  standard deviation over finite cases only.}
 \label{tab:unet-threshold}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lrrrrr@{}}
@@ -1174,17 +1162,17 @@ Precision    & 0.656 $\pm$ 0.370 & 0.664 $\pm$ 0.373 & 0.671 $\pm$ 0.375 & 0.675
 Recall       & 0.577 $\pm$ 0.368 & 0.567 $\pm$ 0.365 & 0.558 $\pm$ 0.362 & 0.549 $\pm$ 0.360 & 0.538 $\pm$ 0.357 \\
 BF1 (2\,px)  & 0.627 $\pm$ 0.355 & 0.627 $\pm$ 0.355 & 0.626 $\pm$ 0.355 & 0.625 $\pm$ 0.355 & 0.622 $\pm$ 0.356 \\
 BF1 (5\,px)  & 0.682 $\pm$ 0.363 & 0.681 $\pm$ 0.362 & 0.681 $\pm$ 0.362 & 0.679 $\pm$ 0.362 & 0.677 $\pm$ 0.362 \\
-HD95 (med.)  & 16.1              & 17.0              & 18.5              & 19.4              & 20.3              \\
+HD95         & 46.9 $\pm$ 68.5 & 46.9 $\pm$ 68.4 & 47.2 $\pm$ 68.8 & 47.2 $\pm$ 68.2 & 47.6 $\pm$ 68.1 \\
 \bottomrule
-\end{tabular}
-\par}
+\end{tabular}%
+}
 \end{table}
 
 Foreground Dice varies by only 0.013 across thresholds 0.30--0.70 (from 0.583
 to 0.570), with precision rising slightly and recall falling as the threshold
-increases. The HD95 median also rises gradually from 16.1\,px to 20.3\,px
-across the same range. This highlights how the threshold choice is not a major 
-source of variation for the U-Net performance.
+increases. Finite-case HD95 also remains broadly stable across the same range.
+This highlights how the threshold choice is not a major source of variation for
+the U-Net performance.
 
 \subsection{Object-Level and Biological Performance}
 \label{sec:unet-objects}
@@ -1197,7 +1185,7 @@ the connected-component recovery and Hungarian matching procedure.
 \normalsize
 \renewcommand{\arraystretch}{1.08}
 \setlength{\tabcolsep}{3pt}
-\caption{U-Net object-level metrics under the current connected-component
+\caption{U-Net object-level metrics under the connected-component
   analysis, with all predicted components retained before matching.
   \emph{All}: 3,312 test cases; \emph{GT$+$}: GT-positive cases only
   (2,694 cases).}
@@ -1229,8 +1217,8 @@ Matched IoU         & $0.482 \pm 0.355$ & $0.625\ [0.000{-}0.788]$
 PQ (IoU $>0.5$)     & $0.459 \pm 0.340$ & $0.445\ [0.170{-}0.715]$
                     & $0.395 \pm 0.275$ & $0.403\ [0.171{-}0.603]$ \\
 \bottomrule
-\end{tabular}
-\par}
+\end{tabular}%
+}
 \end{table}
 
 The object-level metrics present a more constrained view of performance than the
@@ -1242,8 +1230,8 @@ fragments partly cancel when averaged across slices.
 The average count error remains substantial at 3.07 over all test cases and 3.54
 on GT-positive slices, with a median of 2 in both views. On GT-positive slices
 the signed count error is still slightly negative ($-0.18$). The bias
-is under-estimating the number of mitochondria present in
-each slice, even though fragmented over-prediction elsewhere shifts the
+is toward under-estimating the number of mitochondria present in each slice, although
+fragmented over-prediction in other slices shifts the
 overall mean closer to zero.
 
 The median merge and split rates are both zero, indicating that many images do
@@ -1317,8 +1305,10 @@ interquartile range.
 \caption{nnU-Net voxel-level metrics at threshold~0.5 on the test set.
   \emph{All}: aggregate over the 3,312-case test set; \emph{GT$+$}:
   GT-positive cases only (2,694 cases). Foreground-only overlap metrics exclude
-  empty-empty slices, where foreground overlap is undefined.}
+  empty-empty slices, where foreground overlap is undefined. HD95 is reported
+  over finite cases only.}
 \label{tab:nnunet-voxel}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lcccc@{}}
 \toprule
  & \multicolumn{2}{c}{\textbf{All}}
@@ -1343,10 +1333,13 @@ BF1 (2\,px)  & $0.684 \pm 0.354$ & $0.837\ [0.516{-}0.967]$
              & $0.641 \pm 0.344$ & $0.775\ [0.435{-}0.909]$ \\
 BF1 (5\,px)  & $0.729 \pm 0.354$ & $0.901\ [0.627{-}1.000]$
              & $0.696 \pm 0.350$ & $0.853\ [0.566{-}0.954]$ \\
+HD95 (finite) & $40.3 \pm 65.7$ & $8.9\ [1.4{-}55.4]$
+             & $49.6 \pm 69.6$ & $21.0\ [3.6{-}66.9]$ \\
 ECE          & $0.018 \pm 0.038$ & $0.007\ [0.001{-}0.018]$
              & $0.022 \pm 0.040$ & $0.010\ [0.004{-}0.022]$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 At threshold~0.5, nnU-Net reaches a mean foreground Dice of 0.624 over all
@@ -1362,7 +1355,7 @@ This indicates that most predictions lie close to the ground-truth boundary,
 with a smaller subset exhibiting large localised deviations. For GT-positive
 cases only (2,363 finite), the mean rises to
 49.6\,px and the median to 21.0\,px, as the easy background-only cases no
-longer contribute. Under the current convention, empty-empty slices receive
+longer contribute. In this case, empty-empty slices receive
 HD95~=~0, so the 409 non-finite nnU-Net cases correspond specifically to 331
 missed GT-positive slices and 78 GT-empty false positives.
 
@@ -1380,8 +1373,8 @@ again reflects a small proportion of poorly calibrated images.
 \setlength{\tabcolsep}{3pt}
 \caption{nnU-Net voxel metrics at five probability thresholds. Foreground-only
   overlap and boundary metrics are reported as mean $\pm$ standard deviation
-  over the cases where they are defined; HD95 is reported as the median of
-  finite cases only.}
+  over the cases where they are defined; HD95 is also reported as mean $\pm$
+  standard deviation over finite cases only.}
 \label{tab:nnunet-threshold}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lrrrrr@{}}
@@ -1396,10 +1389,10 @@ Precision    & 0.720 $\pm$ 0.361 & 0.724 $\pm$ 0.364 & 0.729 $\pm$ 0.367 & 0.732
 Recall       & 0.614 $\pm$ 0.365 & 0.603 $\pm$ 0.364 & 0.593 $\pm$ 0.363 & 0.581 $\pm$ 0.362 & 0.569 $\pm$ 0.360 \\
 BF1 (2\,px)  & 0.690 $\pm$ 0.351 & 0.687 $\pm$ 0.353 & 0.684 $\pm$ 0.354 & 0.680 $\pm$ 0.356 & 0.675 $\pm$ 0.357 \\
 BF1 (5\,px)  & 0.734 $\pm$ 0.353 & 0.731 $\pm$ 0.354 & 0.729 $\pm$ 0.354 & 0.725 $\pm$ 0.356 & 0.720 $\pm$ 0.358 \\
-HD95 (med.)  & 9.0               & 9.0               & 8.9               & 9.1               & 10.0              \\
+HD95         & 40.9 $\pm$ 66.5 & 40.6 $\pm$ 65.7 & 40.3 $\pm$ 65.7 & 40.8 $\pm$ 66.1 & 41.4 $\pm$ 66.5 \\
 \bottomrule
-\end{tabular}
-\par}
+\end{tabular}%
+}
 \end{table}
 
 Foreground Dice varies by only 0.024 across thresholds 0.30--0.70 (from 0.635
@@ -1420,7 +1413,7 @@ nonzero integer labels.
 \normalsize
 \renewcommand{\arraystretch}{1.08}
 \setlength{\tabcolsep}{3.0pt}
-\caption{nnU-Net object-level metrics under the current
+\caption{nnU-Net object-level metrics under the
   connected-component analysis, with all predicted components retained before
   matching. \emph{All}: 3,312 test cases; \emph{GT$+$}: GT-positive cases only
   (2,694 cases).}
@@ -1452,8 +1445,8 @@ Matched IoU          & $0.514 \pm 0.373$ & $0.698\ [0.000{-}0.826]$
 PQ (IoU $>0.5$)      & $0.544 \pm 0.341$ & $0.577\ [0.299{-}0.831]$
                      & $0.468 \pm 0.295$ & $0.520\ [0.247{-}0.702]$ \\
 \bottomrule
-\end{tabular}
-\par}
+\end{tabular}%
+}
 \end{table}
 
 
@@ -1466,7 +1459,7 @@ Merge rate (0.035) and split rate (0.041) have low mean values, and
 the median for both is exactly zero, indicating that most images have no merge
 or split events. Relative to the U-Net, both means are lower, especially for
 split rate (0.041 vs.\ 0.091), so fragmentation is less frequent. The remaining
-errors are still concentrated in a subset of difficult cases, rather than being
+errors are still concentrated in a subset of difficult cases. They are not
 spread evenly across the test set.
 
 Table~\ref{tab:nnunet-obj-pr} reports object-level precision and recall at four
@@ -1543,6 +1536,9 @@ BF1 (2\,px)             & 0.626 & 0.684 & +0.058 \\
 HD95 (paired finite mean, px)  & 43.06 & 39.78 & $-3.28$ \\
 ECE                     & 0.020 & 0.018 & $-0.002$ \\
 Count error signed      & $0.04$ & $-1.44$ & $-1.48$ \\
+Merge rate              & 0.041 & 0.035 & $-0.006$ \\
+Split rate              & 0.091 & 0.041 & $-0.050$ \\
+Connectivity error      & 0.132 & 0.076 & $-0.056$ \\
 PQ (IoU $>0.5$)         & 0.459 & 0.544 & +0.084 \\
 Obj.\ Precision @0.5    & 0.557 & 0.676 & +0.119 \\
 Obj.\ Recall @0.5       & 0.558 & 0.606 & +0.047 \\
@@ -1564,17 +1560,15 @@ Figure~\ref{fig:appendix-dice-overlay}).
 \subsection{Trade-Offs}
 U-Net misses fewer GT-positive slices (278 vs.\ 331) and its signed count
 error is closer to zero overall, which might suggest comparable object
-recovery. However, the near-zero signed count error
-arises because extra fragments on difficult slices offset missed objects
-elsewhere. Once the full object-level analysis is considered, U-Net has a
-much higher split rate (0.091 vs.\ 0.041), a larger connectivity error
-(0.132 vs.\ 0.076), more zero-Dice failures overall (551 vs.\ 493), fewer
-very strong predictions with Dice $>0.9$ (547 vs.\ 755), and more
-false positives on GT-empty slices (160 vs.\ 78). Fewer complete misses are
-not enough to offset the weaker object separation and higher false-positive
-rate.
+recovery. However, that near-zero signed error is partly offset by
+fragmentation. The comparison table shows the main result: U-Net has a much
+higher split rate (0.091 vs.\ 0.041) and connectivity error (0.132 vs.\
+0.076). The earlier voxel summaries also show more zero-Dice failures (551
+vs.\ 493) and more false positives on GT-empty slices (160 vs.\ 78). Fewer
+complete misses therefore do not translate into better overall object
+recovery.
 
-Across the 27 paired metrics tested in the current evaluation, two-sided 
+Across the 27 paired metrics tested in the evaluation, two-sided 
 Wilcoxon signed-rank tests with Benjamini--Hochberg correction favour 
 nnU-Net in all cases. This includes voxel overlap, boundary quality, 
 calibration, and object-level metrics. These results provide strong paired
@@ -1617,14 +1611,14 @@ individual mitochondria. The corner-case diagnostic uses Dice $>0.85$ as a
 high-overlap threshold and then asks whether the same slice shows object count error
 $>4$, merge rate $>0$, or split rate $>0$. Across all slices, 373 of
 2,854 U-Net cases (13.1\%) and 436 of 2,772 nnU-Net cases (15.7\%) meet this
-rule. Restricting the view to the high-Dice (>0.85)subset shows why Dice alone is not
+rule. Restricting the view to the high-Dice ($>0.85$) subset shows why Dice alone is not
 a safe acceptance criterion: 373 of 882 U-Net high-Dice slices (42.3\%) and
 436 of 1,144 nnU-Net high-Dice slices (38.1\%) still show elevated
 object-level error.
 
 If Dice $>0.85$ were used as a quality threshold, about two in five accepted
 slices would still contain a biologically meaningful error. These errors
-include fragmented objects, merged clusters, count errors greater than four,
+include count errors greater than four, merged clusters, fragmented objects, 
 or combinations of these. Any downstream analysis that depends on object
 count, morphology, or spatial separation would then inherit those errors.
 
@@ -1632,8 +1626,8 @@ Figure~\ref{fig:corner-case-examples} shows representative high-Dice failure mod
 U-Net example, the dense cluster is over-fragmented despite
 Dice 0.953, with count error 12 and split rate 1.000. In the nnU-Net example,
 most of the cluster is merged despite Dice 0.967, producing count error 14 and
-merge rate 0.632. These are structural errors rather than minor boundary
-deviations: one is driven by fragmentation and the other by merging. The
+merge rate 0.632. These are structural errors. One case is driven by
+fragmentation and the other by merging, not by minor boundary deviations. The
 diagnostic uses Dice as the entry criterion, but the broader conclusion
 concerns voxel-level sufficiency: strong voxel-level scores do not guarantee
 reliable object recovery.
@@ -1660,7 +1654,8 @@ reliable object recovery.
 \end{figure}
 
 Figure~\ref{fig:qualitative-comparison} shows two further examples where the
-main difference is object separation rather than overall coverage. In example 1,
+main difference lies in object separation, while overall coverage remains
+similar. In example 1,
 U-Net merges neighbouring mitochondria that nnU-Net keeps separate, despite
 similar Dice, producing a PQ gap of 0.608 vs.\ 0.910. In example 2, U-Net draws
 coarser boundaries in the denser region, reducing both Dice and PQ
@@ -1706,22 +1701,25 @@ set: Q1 ($\leq 0.015$), Q2 (0.015--0.040), Q3 (0.040--0.102), and Q4
 \renewcommand{\arraystretch}{1.08}
 \setlength{\tabcolsep}{3pt}
 \caption{Metrics stratified by foreground pixel-ratio quartile
-  (GT-positive images only; $n \approx 674$ per quartile). The split-rate and
-  PQ columns use the current connected-component analysis. `U'
+  (GT-positive images only; $n \approx 674$ per quartile). The object-count-error,
+  split-rate, and PQ columns use the connected-component analysis. `U'
   denotes U-Net and `nn' denotes nnU-Net.}
 \label{tab:fg-strat}
-\begin{tabular}{@{}lrrrrrr@{}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lrrrrrrrr@{}}
 \toprule
 \textbf{Quartile} & \textbf{U Dice} & \textbf{nn Dice}
+  & \textbf{U Count} & \textbf{nn Count}
   & \textbf{U Split} & \textbf{nn Split}
   & \textbf{U PQ} & \textbf{nn PQ} \\
 \midrule
-Q1 ($\leq 0.015$)   & 0.398 & 0.435 & 0.039 & 0.020 & 0.290 & 0.325 \\
-Q2 (0.015--0.040)   & 0.570 & 0.605 & 0.067 & 0.051 & 0.385 & 0.445 \\
-Q3 (0.040--0.102)   & 0.722 & 0.767 & 0.109 & 0.046 & 0.486 & 0.591 \\
-Q4 ($>$0.102)       & 0.759 & 0.763 & 0.231 & 0.083 & 0.419 & 0.510 \\
+Q1 ($\leq 0.015$)   & 0.398 & 0.435 & 2.202 & 1.426 & 0.039 & 0.020 & 0.290 & 0.325 \\
+Q2 (0.015--0.040)   & 0.570 & 0.605 & 2.905 & 2.574 & 0.067 & 0.051 & 0.385 & 0.445 \\
+Q3 (0.040--0.102)   & 0.722 & 0.767 & 3.798 & 2.730 & 0.109 & 0.046 & 0.486 & 0.591 \\
+Q4 ($>$0.102)       & 0.759 & 0.763 & 5.252 & 5.545 & 0.231 & 0.083 & 0.419 & 0.510 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 
@@ -1740,7 +1738,8 @@ into its foreground-overlap score. At the voxel level, the Dice gap in Q4 is
 small (0.759 vs.\ 0.763), which would make the models appear nearly equivalent 
 if only overlap were considered. At the object level, the models remain clearly separated:
 PQ stays higher for nnU-Net (0.510 vs.\ 0.419) and the split-rate gap widens
-substantially in Q4.
+substantially in Q4. Object count error also rises with density for both
+models, reaching 5.252 for U-Net and 5.545 for nnU-Net in the densest quartile.
 
 Appendix Figure~\ref{fig:appendix-fg-density-stratified} shows this pattern. The Dice
 curves draw closer in Q4, whereas split rate and PQ continue to separate the
@@ -1761,9 +1760,8 @@ across image conditions.
 The following are the main conclusions:
 \begin{itemize}
   \item Standard voxel-level metrics can understate biologically meaningful
-  differences between the models. nnU-Net is the stronger model overall, but
-  the size of its advantage becomes clearer once the evaluation moves beyond
-  voxel-level metrics alone. The paired comparison, the object-level tables,
+  differences between the models. nnU-Net is the stronger model overall. The
+  paired comparison, the object-level tables,
   and the stratified analysis all point in the same direction: the overlap gap
   between the models is modest, but the difference in object recovery is more
   pronounced. This is especially clear in dense slices, where overlap-based
@@ -1779,23 +1777,22 @@ The following are the main conclusions:
   overlap remains reasonably strong.
 
   \item Strong voxel-level scores can still conceal errors that matter in
-  biological analysis. Under the Chapter~5 corner-case diagnostic, the
-  corner-case analysis identifies a substantial set of high-overlap predictions
+  biological analysis. The Chapter~5 corner-case diagnostic
+  identifies a substantial set of high-overlap predictions
   that still contain structural failures. Dice is used as the threshold in
   this diagnostic because it is the most common single overlap metric and the
   one most likely to be treated as a simple acceptance criterion on its own.
-  The qualitative examples show merged clusters and split objects rather than
-  minor boundary imprecision, which means that a strong Dice score alone is
+  The qualitative examples show merged clusters and split objects. The issue is
+  structural failure, not minor boundary imprecision, which means that a strong Dice score alone is
   not a reliable guarantee of biological usefulness.
 \end{itemize}
 
 In practice, this means an EM segmentation study in which individual mitochondria 
-need to be counted and separated should not rely only on
-voxel-level summaries. Dice, IoU, BF1, HD95,
-and ECE remain useful, but they should be reported alongside boundary-aware and
-object-level measures such as PQ, count error, and split or merge statistics
-when downstream interpretation depends on individual mitochondria rather than
-foreground overlap alone.
+need to be counted and separated should go beyond voxel-level summaries. Dice,
+IoU, BF1, HD95, and ECE remain useful, but they should be reported alongside
+boundary-aware and object-level measures such as PQ, count error, and merge or
+split statistics whenever downstream interpretation depends on individual
+mitochondria and their separation.
 
 
 
@@ -1804,21 +1801,21 @@ foreground overlap alone.
 
 \noindent\textbf{Model formulation.} Both models predict foreground as a
 binary mask, and individual mitochondria are recovered afterward by
-connected-component post-processing rather than learned directly during
-training. The reported object-level results therefore should not be taken as
+connected-component post-processing. The separation step is therefore not
+learned directly during training. The reported object-level results should not be taken as
 the best instance-level performance that more specialised end-to-end instance
 segmentation models could achieve.
 
 \noindent\textbf{Scope and generalisability.} The pipeline presented in this
 dissertation should be understood as a proof of concept for a broader
-evaluation strategy rather than as a final statement about mitochondrial
-segmentation models in general. The empirical study is bounded to a single
+evaluation strategy. It is not intended as a final statement about
+mitochondrial segmentation models in general. The empirical study is bounded to a single
 dataset, so the findings should not be assumed to generalise beyond the image
 conditions, annotations, and biological variation represented in CEM-MitoLab.
-The central methodological point of the dissertation would benefit from being
-tested on a wider range of architectures and model families, whether semantic
-or instance-aware, to determine which conclusions are robust across modelling
-choices and which are specific to the models examined in this dissertation. Formal paired
+The central methodological point of the dissertation should be tested on a
+wider range of architectures and model families, whether semantic or
+instance-aware. That would help distinguish conclusions that are robust across
+modelling choices from those that are specific to the models examined here. Formal paired
 significance testing is therefore informative within this dataset, but should
 not be overgeneralised beyond this experimental setting.
 
@@ -1836,7 +1833,7 @@ not be overgeneralised beyond this experimental setting.
   families, to determine which findings are specific to CEM-MitoLab and which
   transfer across imaging conditions and biological sources.
 
-  \item Extend the pipleine and analysis to 3D volumetric settings, where
+  \item Extend the pipeline and analysis to 3D volumetric settings, where
   object-level errors along the $z$-axis can become more consequential than in
   slice-wise 2D evaluation.
 \end{enumerate}
@@ -1859,7 +1856,7 @@ Chapter~5.
 
 Tables~\ref{tab:appendix-stats-voxel} and
 \ref{tab:appendix-stats-object} report the full Wilcoxon signed-rank test
-results with Benjamini--Hochberg-adjusted $p$-values for the current paired
+results with Benjamini--Hochberg-adjusted $p$-values for the paired
 evaluation. The difference column is reported as nnU-Net minus U-Net, so
 positive values favour nnU-Net for higher-is-better metrics and negative values
 favour nnU-Net for lower-is-better metrics.
@@ -1926,7 +1923,7 @@ Table~\ref{tab:appendix-gt-empty} isolates the 618 background-only test slices.
 This makes the difference in empty-slice behaviour explicit: U-Net produces
 false positives on 160 of 618 GT-empty slices (25.9\%), whereas nnU-Net does so
 on 78 of 618 (12.6\%).
-In the current evaluator, foreground-only overlap metrics are undefined on
+In the evaluator, foreground-only overlap metrics are undefined on
 empty-empty slices. Dice FG, IoU, precision, and recall are therefore 0 in
 this table because the only finite GT-empty cases are false-positive
 predictions. Boundary F1 remains nonzero because empty-empty slices are still
