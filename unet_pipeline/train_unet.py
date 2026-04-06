@@ -2,7 +2,7 @@
 """
 train_unet.py
 -------------
-Canonical U-Net trainer for the resplit experiment.
+Trains the custom U-Net.
 
 This script trains on nnU-Net preprocessed `.b2nd` tensors so the U-Net sees
 the same z-score normalised train/val inputs as nnU-Net. Test inference is run
@@ -31,6 +31,8 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
 
 WORKER_BASE_SEED = 0
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_DEFAULT = REPO_ROOT / "config.json"
 
 def _progress(iterable, **kwargs):
     return iterable
@@ -56,7 +58,14 @@ def load_b2nd(case_path: Path) -> Tuple[np.ndarray, np.ndarray]:
 
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
-        return json.load(f)
+        cfg = json.load(f)
+    base_dir = config_path.resolve().parent
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            path = Path(value)
+            if not path.is_absolute():
+                cfg["paths"][key] = str(base_dir / path)
+    return cfg
 
 def load_fold0_split(split_path: Path) -> Tuple[List[str], List[str]]:
     if split_path.suffix == ".json":
@@ -111,7 +120,7 @@ def load_splits(config_path: Path) -> Tuple[List[str], List[str], List[str], Pat
         if raw_train != train_all or raw_val != val_all:
             raise RuntimeError(
                 f"Split mismatch between {preproc_json} and {raw_json}. "
-                "Re-run day2/extract_config.py so U-Net and nnU-Net stay aligned."
+                "Re-run nnunet_preprocessing/extract_config.py so U-Net and nnU-Net stay aligned."
             )
 
     train_ids = [c for c in train_all if (preproc_dir / f"{c}.b2nd").exists()]
@@ -586,7 +595,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train the canonical resplit U-Net on nnU-Net preprocessed .b2nd files.")
     parser.add_argument("--config", type=Path,
-                        default=Path("/home/s2292949/dissertation_resplit/config.json"))
+                        default=CONFIG_DEFAULT)
     parser.add_argument("--resume", action="store_true",
                         help="Resume training from last_checkpoint.pt when available.")
     parser.add_argument("--epochs",       type=int,   default=1000)
@@ -825,7 +834,7 @@ def main():
 
     if test_loader is None:
         print("\nSkipped in-script test evaluation because no test .b2nd files are available.")
-        print("Run day4/predict_unet.py followed by day5/evaluate.py for held-out test results.\n")
+        print("Run unet_pipeline/predict_unet.py followed by evaluation_pipeline/evaluate.py for held-out test results.\n")
         return
 
     test_loss, test_dice, test_prec, test_rec, test_f1, test_acc, test_hd95 =\

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Generate reproducible documentation for the current unsuffixed evaluation.
+Print a plain-English summary of the evaluation results.
 
-Outputs by default:
+Outputs:
   evaluation/results/highlights_summary.txt
   evaluation/results/highlights_summary.md
 """

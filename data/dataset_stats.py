@@ -1,7 +1,5 @@
 """
-Day 1 - Script 2: dataset_stats.py
-=====================================
-Computes per-slice and per-sample statistics.
+Compute per-slice and per-sample statistics for CEM-MitoLab.
 
 CEM-MitoLab specific:
   - Masks are instance labels (0=bg, 1-255=individual mitochondria)
@@ -10,12 +8,12 @@ CEM-MitoLab specific:
   - Original instance information is NOT destroyed here
 
 Reads:
-  /home/s2292949/dissertation_resplit/data/cem_mitolab
-  /home/s2292949/dissertation_resplit/data/inspection_report.csv
+  data/cem_mitolab
+  data/inspection_report.csv
 
 Outputs:
-  /home/s2292949/dissertation_resplit/data/dataset_stats.csv   (one row per slice)
-  /home/s2292949/dissertation_resplit/data/sample_stats.csv    (one row per sample)
+  data/dataset_stats.csv   (one row per slice)
+  data/sample_stats.csv    (one row per sample)
 """
 
 import csv
@@ -25,9 +23,10 @@ from pathlib import Path
 from tifffile import imread
 
 # ── CONFIG ───────────────────────────────────────────────────────────────────
-DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-INSPECTION_CSV = "/home/s2292949/dissertation_resplit/data/inspection_report.csv"
-OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT      = Path(__file__).resolve().parents[1]
+DATA_ROOT      = REPO_ROOT / "data" / "cem_mitolab"
+INSPECTION_CSV = REPO_ROOT / "data" / "inspection_report.csv"
+OUTPUT_DIR     = REPO_ROOT / "data"
 # ─────────────────────────────────────────────────────────────────────────────
 
 

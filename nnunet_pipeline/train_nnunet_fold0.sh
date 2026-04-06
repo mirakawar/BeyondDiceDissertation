@@ -6,47 +6,43 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
 #SBATCH --time=2-00:00:00
-#SBATCH --output=/home/s2292949/dissertation_resplit/logs/nnunet_fold0_%j.out
-#SBATCH --error=/home/s2292949/dissertation_resplit/logs/nnunet_fold0_%j.err
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=s2292949@ed.ac.uk
+#SBATCH --output=logs/nnunet_fold0_%j.out
+#SBATCH --error=logs/nnunet_fold0_%j.err
 
 set -euo pipefail
 
-echo "================================================================"
-echo "  nnU-Net Fold 0 Training"
-echo "  Job ID  : ${SLURM_JOB_ID:-interactive}"
-echo "  Node    : ${SLURM_NODELIST:-local}"
-echo "  Started : $(date)"
-echo "================================================================"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+echo "nnU-Net fold 0 training ($(date))"
 echo ""
 
 export PATH="$HOME/.local/bin:$PATH"
-export nnUNet_raw="/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
-export nnUNet_preprocessed="/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed"
-export nnUNet_results="/home/s2292949/dissertation_resplit/nnunet/nnUNet_results"
+export nnUNet_raw="${REPO_ROOT}/nnunet/nnUNet_raw"
+export nnUNet_preprocessed="${REPO_ROOT}/nnunet/nnUNet_preprocessed"
+export nnUNet_results="${REPO_ROOT}/nnunet/nnUNet_results"
 export NNUNET_COMPILE=0
 export nnUNet_def_n_proc=2
 export nnUNet_n_proc_DA=2
 export OMP_NUM_THREADS=2
 
-mkdir -p /home/s2292949/dissertation_resplit/logs
+mkdir -p "${REPO_ROOT}/logs"
 
 echo "Checking prerequisites..."
 
 PLANS="$nnUNet_preprocessed/Dataset001_Mitochondria/nnUNetPlans.json"
 SPLITS_RAW_JSON="$nnUNet_raw/Dataset001_Mitochondria/splits_final.json"
 SPLITS_PREPROC_JSON="$nnUNet_preprocessed/Dataset001_Mitochondria/splits_final.json"
-ID_MAP="/home/s2292949/dissertation_resplit/data/nnunet_id_map.json"
-ACTIVE_SPLITS="/home/s2292949/dissertation_resplit/data/splits.json"
+ID_MAP="${REPO_ROOT}/data/nnunet_id_map.json"
+ACTIVE_SPLITS="${REPO_ROOT}/data/splits.json"
 
 if [ ! -f "$PLANS" ]; then
-    echo "ERROR: nnUNetPlans.json not found. Run Day 2 first."
+    echo "ERROR: nnUNetPlans.json not found. Run nnunet_preprocessing/preprocess_nnunet.sh first."
     exit 1
 fi
 
 if [ ! -f "$SPLITS_RAW_JSON" ]; then
-    echo "ERROR: splits_final.json not found in nnUNet_raw. Run Day 1 first."
+    echo "ERROR: splits_final.json not found in nnUNet_raw. Run data_preparation/create_nnunet_format.py first."
     exit 1
 fi
 
@@ -91,7 +87,7 @@ preproc_train, preproc_val = load_fold0(preproc_json)
 if raw_train != preproc_train or raw_val != preproc_val:
     fail(
         "raw and preprocessed splits_final.json differ. "
-        "Re-run day2/extract_config.py before training."
+        "Re-run nnunet_preprocessing/extract_config.py before training."
     )
 
 with open(id_map_json) as f:
@@ -146,12 +142,7 @@ echo "GPU status:"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader
 echo ""
 
-echo "================================================================"
-echo "  Starting nnUNetv2_train"
-echo "  Dataset  : 001 (Dataset001_Mitochondria)"
-echo "  Config   : 2d"
-echo "  Fold     : 0"
-echo "================================================================"
+echo "starting nnUNetv2_train (dataset 001, 2d, fold 0)"
 echo ""
 
 nnUNetv2_train 001 2d 0 --npz --c
@@ -159,26 +150,21 @@ nnUNetv2_train 001 2d 0 --npz --c
 EXIT_CODE=$?
 
 echo ""
-echo "================================================================"
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "  ✓ Training complete : $(date)"
+    echo "training done: $(date)"
 
     FOLD_DIR="$nnUNet_results/Dataset001_Mitochondria/nnUNetTrainer__nnUNetPlans__2d/fold_0"
     CKPT="$FOLD_DIR/checkpoint_final.pth"
     if [ -f "$CKPT" ]; then
         SIZE=$(ls -lh "$CKPT" | awk '{print $5}')
-        echo "  ✓ Final checkpoint : $CKPT ($SIZE)"
+        echo "checkpoint: $CKPT ($SIZE)"
     fi
 
     BEST_CKPT="$FOLD_DIR/checkpoint_best.pth"
     if [ -f "$BEST_CKPT" ]; then
-        echo "  ✓ Best checkpoint  : $BEST_CKPT"
+        echo "best checkpoint: $BEST_CKPT"
     fi
-
-    echo ""
-    echo "  Next step: run predict_nnunet_fold0.sh to generate test predictions"
 else
-    echo "  ✗ Training failed with exit code $EXIT_CODE"
+    echo "training failed (exit code $EXIT_CODE)"
     exit $EXIT_CODE
 fi
-echo "================================================================"

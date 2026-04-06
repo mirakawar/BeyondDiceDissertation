@@ -1,21 +1,13 @@
 """
-Day 1 - Script 2: dataset_stats.py
-=====================================
-Computes per-slice and per-sample statistics.
+Compute per-slice and per-sample statistics for CEM-MitoLab.
 
-CEM-MitoLab specific:
-  - Masks are instance labels (0=bg, 1-255=individual mitochondria)
-  - n_instances recorded per slice (used for object-level metrics later)
-  - Masks are binarised ONLY for fg_ratio calculation
-  - Original instance information is NOT destroyed here
+Masks are instance labels (0=background, 1-255=individual mitochondria).
+Masks are binarised only for computing fg_ratio — instance counts are
+preserved and written out for use in the object-level metrics later.
 
-Reads:
-  /home/s2292949/dissertation_resplit/data/cem_mitolab
-  /home/s2292949/dissertation_resplit/data/inspection_report.csv
-
-Outputs:
-  /home/s2292949/dissertation_resplit/data/dataset_stats.csv   (one row per slice)
-  /home/s2292949/dissertation_resplit/data/sample_stats.csv    (one row per sample)
+Reads:  data/cem_mitolab, data/inspection_report.csv
+Output: data/dataset_stats.csv (one row per slice)
+        data/sample_stats.csv  (one row per sample)
 """
 
 import csv
@@ -24,9 +16,10 @@ import pandas as pd
 from pathlib import Path
 from tifffile import imread
 
-DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-INSPECTION_CSV = "/home/s2292949/dissertation_resplit/data/inspection_report.csv"
-OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT      = Path(__file__).resolve().parents[1]
+DATA_ROOT      = REPO_ROOT / "data" / "cem_mitolab"
+INSPECTION_CSV = REPO_ROOT / "data" / "inspection_report.csv"
+OUTPUT_DIR     = REPO_ROOT / "data"
 
 def compute_dataset_stats(data_root: str, inspection_csv: str, output_dir: str):
     data_root  = Path(data_root)

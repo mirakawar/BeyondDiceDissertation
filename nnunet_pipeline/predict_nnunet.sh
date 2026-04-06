@@ -6,22 +6,22 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
 #SBATCH --time=48:00:00
-#SBATCH --output=/home/s2292949/dissertation_resplit/logs/nnunet_predict_%j.out
-#SBATCH --error=/home/s2292949/dissertation_resplit/logs/nnunet_predict_%j.err
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=s2292949@ed.ac.uk
+#SBATCH --output=logs/nnunet_predict_%j.out
+#SBATCH --error=logs/nnunet_predict_%j.err
 #SBATCH --exclude=damnii12
 
 set -euo pipefail
 shopt -s nullglob
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
 export PATH="$HOME/.local/bin:$PATH"
-export nnUNet_raw="/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
-export nnUNet_preprocessed="/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed"
-export nnUNet_results="/home/s2292949/dissertation_resplit/nnunet/nnUNet_results"
+export nnUNet_raw="${REPO_ROOT}/nnunet/nnUNet_raw"
+export nnUNet_preprocessed="${REPO_ROOT}/nnunet/nnUNet_preprocessed"
+export nnUNet_results="${REPO_ROOT}/nnunet/nnUNet_results"
 export TQDM_DISABLE=1
 
-ROOT="/home/s2292949/dissertation_resplit"
 DATASET="Dataset001_Mitochondria"
 DATASET_ID="001"
 CONFIG="2d"
@@ -33,7 +33,7 @@ INSTANCES_DIR="${nnUNet_raw}/${DATASET}/instancesTs"
 FOLD_DIR="${nnUNet_results}/${DATASET}/nnUNetTrainer__nnUNetPlans__${CONFIG}/fold_${FOLD}"
 CHECKPOINT_PATH="${FOLD_DIR}/${CHECKPOINT_NAME}"
 
-PRED_ROOT="${ROOT}/predictions/nnunet"
+PRED_ROOT="${REPO_ROOT}/predictions/nnunet"
 RAW_OUT="${PRED_ROOT}/_raw_predict"
 BINARY_OUT="${PRED_ROOT}/binary"
 PROBS_OUT="${PRED_ROOT}/probs"
@@ -68,17 +68,8 @@ num_instances=$(find "${INSTANCES_DIR}" -maxdepth 1 -name '*_inst.nii.gz' | wc -
 [[ "${num_instances}" -gt 0 ]] || fail "No test instance masks found in ${INSTANCES_DIR}"
 [[ "${num_inputs}" -eq "${num_instances}" ]] || fail "imagesTs count (${num_inputs}) does not match instancesTs count (${num_instances})"
 
-echo "=================================================="
-echo "nnU-Net Test Prediction"
-echo "Job ID   : ${SLURM_JOB_ID:-interactive}"
-echo "Node     : ${SLURM_NODELIST:-local}"
-echo "Started  : $(date)"
-echo "Input    : ${INPUT_DIR}"
-echo "Instances: ${INSTANCES_DIR}"
-echo "Model    : ${FOLD_DIR}"
-echo "Checkpoint: ${CHECKPOINT_NAME}"
-echo "Cases    : ${num_inputs}"
-echo "=================================================="
+echo "nnU-Net test prediction ($(date))"
+echo "input: ${INPUT_DIR}  checkpoint: ${CHECKPOINT_NAME}  cases: ${num_inputs}"
 echo ""
 echo "GPU status:"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader || true

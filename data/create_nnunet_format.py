@@ -1,8 +1,7 @@
 """
-Day 1 - Script 4: create_nnunet_format.py
-==========================================
-Converts raw tif dataset into nnU-Net's required 2D format
-AND writes splits_final.pkl to override nnU-Net's default CV.
+Create the nnU-Net raw dataset layout for the dissertation split.
+
+This older copy converts the raw TIFF dataset into nnU-Net's 2D format.
 
 CEM-MitoLab specific:
   - Masks are instance labels (0=bg, 1-255=mitochondria instances)
@@ -11,7 +10,7 @@ CEM-MitoLab specific:
     for use in biological metrics during evaluation (DO NOT DELETE)
 
 nnU-Net 2D structure produced:
-  /home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/
+  nnunet/nnUNet_raw/Dataset001_Mitochondria/
       ├── dataset.json
       ├── imagesTr/            ← binary images, train + val
       │   ├── mito_0001_0000.nii.gz
@@ -31,12 +30,12 @@ nnU-Net 2D structure produced:
       └── splits_final.pkl     ← fold 0 = splits.json train/val
 
 Reads:
-  /home/s2292949/dissertation_resplit/data/cem_mitolab
-  /home/s2292949/dissertation_resplit/data/splits.json
+  data/cem_mitolab
+  data/splits.json
 
 Outputs:
-  /home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/
-  /home/s2292949/dissertation_resplit/data/nnunet_id_map.json
+  nnunet/nnUNet_raw/Dataset001_Mitochondria/
+  data/nnunet_id_map.json
 """
 
 import json
@@ -50,10 +49,11 @@ from pathlib import Path
 from tifffile import imread
 
 # ── CONFIG ───────────────────────────────────────────────────────────────────
-DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-SPLITS_JSON    = "/home/s2292949/dissertation_resplit/data/splits.json"
-NNUNET_RAW_DIR = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"   # ← inside nnunet/
-OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT      = Path(__file__).resolve().parents[1]
+DATA_ROOT      = REPO_ROOT / "data" / "cem_mitolab"
+SPLITS_JSON    = REPO_ROOT / "data" / "splits.json"
+NNUNET_RAW_DIR = REPO_ROOT / "nnunet" / "nnUNet_raw"
+OUTPUT_DIR     = REPO_ROOT / "data"
 DATASET_ID     = "001"
 DATASET_NAME   = "Mitochondria"
 MAX_WORKERS    = min(8, os.cpu_count() or 1)

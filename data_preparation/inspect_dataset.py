@@ -1,24 +1,13 @@
 """
-Day 1 - Script 1: inspect_dataset.py
-=====================================
-Inspects all sample folders and their image/mask pairs.
+Check the CEM-MitoLab sample folders and report any issues with image-mask pairs.
 
-CEM-MitoLab specific:
-  - Masks are INSTANCE labels (0 = background, 1-255 = individual mitochondria)
-  - Instance labels are EXPECTED and not flagged as errors
-  - n_instances per slice is recorded for use in biological metrics later
-
-Reports:
-  - Folder structure validity
-  - Image/mask shape and dtype
-  - Mask encoding (instance labels, binary, empty)
-  - Mismatched filenames between images/ and masks/
-  - Empty masks (all background — no mitochondria in patch)
-  - Shape mismatches between image and mask
+Masks are instance labels (0=background, 1-255=individual mitochondria instances).
+Instance labels are expected here — they're not flagged as errors.
+n_instances per slice is saved for use in the object-level metrics later.
 
 Outputs:
-  /home/s2292949/dissertation_resplit/data/inspection_report.csv
-  /home/s2292949/dissertation_resplit/data/inspection_summary.txt
+  data/inspection_report.csv
+  data/inspection_summary.txt
 """
 
 import csv
@@ -27,8 +16,9 @@ from pathlib import Path
 from tifffile import imread
 from collections import defaultdict
 
-DATA_ROOT  = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-OUTPUT_DIR = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT  = Path(__file__).resolve().parents[1]
+DATA_ROOT  = REPO_ROOT / "data" / "cem_mitolab"
+OUTPUT_DIR = REPO_ROOT / "data"
 
 def detect_mask_encoding(mask: np.ndarray):
     """

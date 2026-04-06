@@ -1,43 +1,40 @@
 """
-Day 1 - Script 4: create_nnunet_format.py
-==========================================
-Converts raw tif dataset into nnU-Net's required 2D format
-AND writes splits_final.json to override nnU-Net's default CV.
+Convert CEM-MitoLab TIFFs into nnU-Net's 2D raw format.
 
-CEM-MitoLab specific:
-  - Masks are instance labels (0=bg, 1-255=mitochondria instances)
-  - Binary masks (0/1) are saved to imagesTr/labelsTr for training
-  - Original instance masks are saved separately to instancesTr/
-    for use in biological metrics during evaluation (DO NOT DELETE)
+Writes splits_final.json and splits_final.pkl so that fold 0 matches
+data/splits.json. Masks are instance labels (0=background, 1-255=individual
+mitochondria), but nnU-Net gets binary 0/1 labels for training. The original
+instance masks are saved to instancesTr/ and instancesTs/ — these are needed
+for the object-level evaluation metrics, so don't delete them.
 
 nnU-Net 2D structure produced:
-  /home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/
+  nnunet/nnUNet_raw/Dataset001_Mitochondria/
       ├── dataset.json
-      ├── imagesTr/            ← binary images, train + val
+      ├── imagesTr/            (binary images, train + val)
       │   ├── mito_0001_0000.nii.gz
       │   └── ...
-      ├── labelsTr/            ← binary masks (0/1), train + val
+      ├── labelsTr/            (binary masks (0/1), train + val)
       │   ├── mito_0001.nii.gz
       │   └── ...
-      ├── instancesTr/         ← ORIGINAL instance masks, train + val
+      ├── instancesTr/         (ORIGINAL instance masks, train + val)
       │   ├── mito_0001_inst.nii.gz
       │   └── ...
-      ├── imagesTs/            ← images only, test set
+      ├── imagesTs/            (images only, test set)
       │   ├── mito_XXXX_0000.nii.gz
       │   └── ...
-      ├── instancesTs/         ← ORIGINAL instance masks, test set
+      ├── instancesTs/         (ORIGINAL instance masks, test set) 
       │   ├── mito_XXXX_inst.nii.gz
       │   └── ...
-      ├── splits_final.json    ← nnU-Net v2 split file, fold 0 = splits.json train/val
-      └── splits_final.pkl     ← legacy fallback copy of the same split
+      ├── splits_final.json    (nnU-Net v2 split file, fold 0 = splits.json train/val)
+      └── splits_final.pkl     (legacy fallback copy of the same split)
 
 Reads:
-  /home/s2292949/dissertation_resplit/data/cem_mitolab
-  /home/s2292949/dissertation_resplit/data/splits.json
+  data/cem_mitolab
+  data/splits.json
 
 Outputs:
-  /home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/
-  /home/s2292949/dissertation_resplit/data/nnunet_id_map.json
+  nnunet/nnUNet_raw/Dataset001_Mitochondria/
+  data/nnunet_id_map.json
 """
 
 import json
@@ -47,10 +44,11 @@ import nibabel as nib
 from pathlib import Path
 from tifffile import imread
 
-DATA_ROOT      = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-SPLITS_JSON    = "/home/s2292949/dissertation_resplit/data/splits.json"
-NNUNET_RAW_DIR = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
-OUTPUT_DIR     = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT      = Path(__file__).resolve().parents[1]
+DATA_ROOT      = REPO_ROOT / "data" / "cem_mitolab"
+SPLITS_JSON    = REPO_ROOT / "data" / "splits.json"
+NNUNET_RAW_DIR = REPO_ROOT / "nnunet" / "nnUNet_raw"
+OUTPUT_DIR     = REPO_ROOT / "data"
 DATASET_ID     = "001"
 DATASET_NAME   = "Mitochondria"
 

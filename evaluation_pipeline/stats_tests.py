@@ -1,7 +1,7 @@
 """
-Statistical significance tests: Wilcoxon signed-rank + Benjamini-Hochberg FDR correction.
-Compares U-Net vs nnU-Net across all key metrics on the paired resplit test set
-(shared cases are determined automatically from the per-image result tables).
+Wilcoxon signed-rank tests + Benjamini-Hochberg FDR correction.
+Compares U-Net vs nnU-Net on each metric using the paired test set cases
+shared between both per-image result tables.
 
 Outputs:
   evaluation/results/stats_tests.csv   -- full results per metric

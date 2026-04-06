@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
 save_training_samples.py
-Produces 4-panel training sample visualisations styled like the MLP
-validation panels (white bg, bold monospace headers above each image).
+Saves 4-panel visualisations of training samples.
 
-Panels: Original EM | Ground Truth (green) | Binary Mask | Statistics
-No GPU needed — runs on the login node.
+Panels: Original EM | Ground Truth (green overlay) | Binary Mask | Statistics
+No GPU needed.
 
 Usage:
     python save_training_samples.py
@@ -19,6 +18,20 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_DEFAULT = REPO_ROOT / "config.json"
+OUTPUT_DEFAULT = REPO_ROOT / "samples" / "training"
+
+def load_config(config_path: Path) -> dict:
+    cfg = json.loads(config_path.read_text())
+    base_dir = config_path.resolve().parent
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            path = Path(value)
+            if not path.is_absolute():
+                cfg["paths"][key] = str(base_dir / path)
+    return cfg
 
 def load_b2nd(case_path: Path):
     import blosc2
@@ -119,15 +132,15 @@ def save_panel(idx, case_id, img, mask, meta, out_dir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path,
-                    default=Path("/home/s2292949/dissertation_resplit/config.json"))
+                    default=CONFIG_DEFAULT)
     ap.add_argument("--n",     type=int, default=6)
     ap.add_argument("--out",   type=Path,
-                    default=Path("/home/s2292949/dissertation_resplit/samples/training"))
+                    default=OUTPUT_DEFAULT)
     ap.add_argument("--seed",  type=int, default=42)
     ap.add_argument("--split", choices=["train","val","all"], default="train")
     args = ap.parse_args()
 
-    cfg = json.loads(args.config.read_text())
+    cfg = load_config(args.config)
     id_map_path = Path(cfg["paths"]["nnunet_id_map"])
     preproc_dir = (Path(cfg["paths"]["nnunet_preproc"])
                    / "Dataset001_Mitochondria" / "nnUNetPlans_2d")

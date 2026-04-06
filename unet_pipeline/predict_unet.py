@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Day 4 - predict_unet.py
-=======================
-Run inference with the trained U-Net checkpoint on a split from nnunet_id_map.json
-and save outputs in a layout compatible with the evaluation pipeline:
+Run U-Net inference for a split from `nnunet_id_map.json`.
+
+This saves outputs in a layout compatible with the evaluation pipeline:
 
   predictions/unet/
     ├── binary/
@@ -13,8 +12,8 @@ and save outputs in a layout compatible with the evaluation pipeline:
         ├── mito_XXXX.npz            (key: probabilities, shape: [2, 1, H, W])
         └── ...
 
-Binary NIfTI files follow the same orientation as Dataset001_Mitochondria labels
-created in Day 1 (transposed from raw TIFF to [W, H, 1]).
+Binary NIfTI files follow the same orientation as the Dataset001_Mitochondria
+labels created by `data_preparation/create_nnunet_format.py`.
 """
 
 from __future__ import annotations
@@ -40,6 +39,9 @@ try:
 except ImportError:
     tqdm = None
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_DEFAULT = REPO_ROOT / "config.json"
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -52,6 +54,16 @@ def _progress(iterable, **kwargs):
     if tqdm is None:
         return iterable
     return tqdm(iterable, **kwargs)
+
+def load_config(config_path: Path) -> dict:
+    cfg = json.loads(config_path.read_text())
+    base_dir = config_path.resolve().parent
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            path = Path(value)
+            if not path.is_absolute():
+                cfg["paths"][key] = str(base_dir / path)
+    return cfg
 
 def load_b2nd_image(case_path: Path) -> Tensor:
     import blosc2
@@ -220,7 +232,7 @@ def load_unet_model(checkpoint_path: Path, device: torch.device):
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-    from day4.train_unet import UNet
+    from unet_pipeline.train_unet import UNet
 
     try:
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -265,7 +277,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("/home/s2292949/dissertation_resplit/config.json"),
+        default=CONFIG_DEFAULT,
         help="Path to config.json",
     )
     parser.add_argument(
@@ -336,7 +348,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    cfg = json.loads(args.config.read_text())
+    cfg = load_config(args.config)
 
     data_root = Path(cfg["paths"]["data_root"])
     id_map_path = Path(cfg["paths"]["nnunet_id_map"])

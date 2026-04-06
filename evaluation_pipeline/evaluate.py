@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-Day 5 - evaluate.py
-===================
-Unified per-image evaluation for U-Net and nnU-Net predictions on Dataset001 test set.
+Per-image evaluation for U-Net and nnU-Net predictions on the test set.
 
 Inputs:
   - Binary predictions (.nii.gz)
@@ -34,10 +32,23 @@ try:
 except ImportError:
     tqdm = None
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_DEFAULT = REPO_ROOT / "config.json"
+
 def _progress(iterable, **kwargs):
     if tqdm is None:
         return iterable
     return tqdm(iterable, **kwargs)
+
+def load_config(config_path: Path) -> Dict:
+    cfg = json.loads(config_path.read_text())
+    base_dir = config_path.resolve().parent
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            path = Path(value)
+            if not path.is_absolute():
+                cfg["paths"][key] = str(base_dir / path)
+    return cfg
 
 def threshold_tag(threshold: float) -> str:
     return f"t{int(round(threshold * 100)):02d}"
@@ -398,7 +409,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("/Users/mirakawar/Desktop/dissertation_resplit/config.json"),
+        default=CONFIG_DEFAULT,
         help="Path to config.json.",
     )
     parser.add_argument("--binary-dir", type=Path, default=None, help="Override binary prediction directory.")
@@ -407,7 +418,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("/Users/mirakawar/Desktop/dissertation_resplit/evaluation/results"),
+        default=None,
         help="Directory for output CSV/JSON files.",
     )
     parser.add_argument(
@@ -435,7 +446,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    cfg = json.loads(args.config.read_text())
+    cfg = load_config(args.config)
 
     binary_dir, probs_dir = resolve_prediction_dirs(
         model=args.model,
@@ -444,7 +455,7 @@ def main() -> None:
         probs_dir_override=args.probs_dir,
     )
     instances_dir = args.instances_dir or Path(cfg["paths"]["instances_ts"])
-    output_dir = args.output_dir
+    output_dir = args.output_dir or Path(cfg["paths"]["results_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
     default_threshold = float(cfg["shared"].get("prediction_threshold", 0.5))

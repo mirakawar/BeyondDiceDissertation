@@ -1,32 +1,25 @@
 """
-Day 2 - Script 1: extract_config.py
-=====================================
-Runs AFTER nnUNetv2_plan_and_preprocess has completed.
+Write config.json after nnU-Net preprocessing.
 
-Does three things:
-  1. Copies splits_final.json from nnUNet_raw into nnUNet_preprocessed
-     so nnU-Net v2 uses YOUR split (fold 0 = splits.json)
-     and also copies splits_final.pkl as a legacy fallback when present
-  2. Reads nnUNetPlans.json and extracts patch size, batch size, spacing
-  3. Writes config.json — single source of truth for both models
+Run this after `nnUNetv2_plan_and_preprocess`. It copies splits_final.json
+into nnUNet_preprocessed so nnU-Net uses the dissertation split (fold 0),
+then reads nnUNetPlans.json and writes config.json with the patch size,
+batch size, and spacing both models share.
 
-Reads:
-  /home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed/
-    Dataset001_Mitochondria/nnUNetPlans.json
-
-Outputs:
-  /home/s2292949/dissertation_resplit/config.json
+Reads:  nnunet/nnUNet_preprocessed/Dataset001_Mitochondria/nnUNetPlans.json
+Output: config.json
 """
 
 import json
 import shutil
 from pathlib import Path
 
-NNUNET_PREPROCESSED     = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed"
-NNUNET_RAW              = "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw"
+REPO_ROOT               = Path(__file__).resolve().parents[1]
+NNUNET_PREPROCESSED     = REPO_ROOT / "nnunet" / "nnUNet_preprocessed"
+NNUNET_RAW              = REPO_ROOT / "nnunet" / "nnUNet_raw"
 DATASET_NAME            = "Dataset001_Mitochondria"
-CONFIG_OUT              = "/home/s2292949/dissertation_resplit/config.json"
-SPLITS_JSON             = "/home/s2292949/dissertation_resplit/data/splits.json"
+CONFIG_OUT              = REPO_ROOT / "config.json"
+SPLITS_JSON             = REPO_ROOT / "data" / "splits.json"
 
 MAX_EPOCHS              = 1000
 EARLY_STOPPING_PATIENCE = 50
@@ -52,7 +45,7 @@ def extract_config():
 
     if not src_json.exists():
         print(f"ERROR: splits_final.json not found at {src_json}")
-        print("Re-run day1/create_nnunet_format.py")
+        print("Re-run data_preparation/create_nnunet_format.py")
         return
 
     shutil.copy2(src_json, dst_json)
@@ -98,6 +91,9 @@ def extract_config():
     else:
         print("WARNING: dataset_fingerprint.json not found, using spacing [1.0, 1.0]")
 
+    def rel(path: Path) -> str:
+        return path.relative_to(REPO_ROOT).as_posix()
+
     config = {
         "dataset": {
             "name":            "CEM-MitoLab",
@@ -142,22 +138,22 @@ def extract_config():
             "object_iou_thresholds":    [0.3, 0.5, 0.7, 0.9],
         },
         "paths": {
-            "data_root":          "/home/s2292949/dissertation_resplit/data/cem_mitolab",
-            "splits_json":        "/home/s2292949/dissertation_resplit/data/splits.json",
-            "nnunet_id_map":      "/home/s2292949/dissertation_resplit/data/nnunet_id_map.json",
-            "dataset_stats":      "/home/s2292949/dissertation_resplit/data/dataset_stats.csv",
-            "nnunet_raw":         "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw",
-            "nnunet_preproc":     "/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed",
-            "nnunet_results":     "/home/s2292949/dissertation_resplit/nnunet/nnUNet_results",
-            "instances_tr":       "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTr",
-            "instances_ts":       "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs",
-            "predictions_unet":   "/home/s2292949/dissertation_resplit/predictions/unet",
-            "predictions_nnunet": "/home/s2292949/dissertation_resplit/predictions/nnunet",
-            "results_dir":        "/home/s2292949/dissertation_resplit/evaluation/results",
-            "figures_dir":        "/home/s2292949/dissertation_resplit/figures",
-            "logs_dir":           "/home/s2292949/dissertation_resplit/logs",
-            "unet_checkpoint":    "/home/s2292949/dissertation_resplit/models/unet/checkpoints",
-            "unet_training_log":  "/home/s2292949/dissertation_resplit/models/unet/checkpoints/training_log.csv",
+            "data_root":          rel(REPO_ROOT / "data" / "cem_mitolab"),
+            "splits_json":        rel(REPO_ROOT / "data" / "splits.json"),
+            "nnunet_id_map":      rel(REPO_ROOT / "data" / "nnunet_id_map.json"),
+            "dataset_stats":      rel(REPO_ROOT / "data" / "dataset_stats.csv"),
+            "nnunet_raw":         rel(REPO_ROOT / "nnunet" / "nnUNet_raw"),
+            "nnunet_preproc":     rel(REPO_ROOT / "nnunet" / "nnUNet_preprocessed"),
+            "nnunet_results":     rel(REPO_ROOT / "nnunet" / "nnUNet_results"),
+            "instances_tr":       rel(REPO_ROOT / "nnunet" / "nnUNet_raw" / DATASET_NAME / "instancesTr"),
+            "instances_ts":       rel(REPO_ROOT / "nnunet" / "nnUNet_raw" / DATASET_NAME / "instancesTs"),
+            "predictions_unet":   rel(REPO_ROOT / "predictions" / "unet"),
+            "predictions_nnunet": rel(REPO_ROOT / "predictions" / "nnunet"),
+            "results_dir":        rel(REPO_ROOT / "evaluation" / "results"),
+            "figures_dir":        rel(REPO_ROOT / "figures"),
+            "logs_dir":           rel(REPO_ROOT / "logs"),
+            "unet_checkpoint":    rel(REPO_ROOT / "models" / "unet" / "checkpoints"),
+            "unet_training_log":  rel(REPO_ROOT / "models" / "unet" / "checkpoints" / "training_log.csv"),
         }
     }
 

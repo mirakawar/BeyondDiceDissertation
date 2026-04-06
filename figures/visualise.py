@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 figures/visualise.py
-====================
-Comprehensive visualisation script for the CEM-MitoLab dissertation.
+Generates all dissertation figures from the evaluation results.
 
 Figures produced (in figures/<subdir>/):
   training_panels/  — 4-panel per case: raw EM | GT binary | prediction | error map
@@ -55,7 +54,6 @@ plt.rcParams.update({
 })
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OLD_REPO_ROOT = Path("/home/s2292949/dissertation_resplit")
 CONFIG_DEFAULT = REPO_ROOT / "config.json"
 
 FIG_SUPTITLE_FS = 26
@@ -72,14 +70,12 @@ SMALL_LEGEND_FS = 14
 
 def load_cfg(path: Path) -> Dict:
     cfg = json.loads(path.read_text())
+    base_dir = path.resolve().parent
     for key, value in cfg.get("paths", {}).items():
         if isinstance(value, str):
-            p = Path(value)
-            try:
-                rel = p.relative_to(OLD_REPO_ROOT)
-            except ValueError:
-                continue
-            cfg["paths"][key] = str(REPO_ROOT / rel)
+            path_value = Path(value)
+            if not path_value.is_absolute():
+                cfg["paths"][key] = str(base_dir / path_value)
     return cfg
 
 

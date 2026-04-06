@@ -1,7 +1,5 @@
 """
-Day 1 - Script 1: inspect_dataset.py
-=====================================
-Inspects all sample folders and their image/mask pairs.
+Inspect the extracted CEM-MitoLab sample folders and image-mask pairs.
 
 CEM-MitoLab specific:
   - Masks are INSTANCE labels (0 = background, 1-255 = individual mitochondria)
@@ -17,8 +15,8 @@ Reports:
   - Shape mismatches between image and mask
 
 Outputs:
-  /home/s2292949/dissertation_resplit/data/inspection_report.csv
-  /home/s2292949/dissertation_resplit/data/inspection_summary.txt
+  data/inspection_report.csv
+  data/inspection_summary.txt
 """
 
 import csv
@@ -28,8 +26,9 @@ from tifffile import imread
 from collections import defaultdict
 
 # ── CONFIG ───────────────────────────────────────────────────────────────────
-DATA_ROOT  = "/home/s2292949/dissertation_resplit/data/cem_mitolab"
-OUTPUT_DIR = "/home/s2292949/dissertation_resplit/data"
+REPO_ROOT  = Path(__file__).resolve().parents[1]
+DATA_ROOT  = REPO_ROOT / "data" / "cem_mitolab"
+OUTPUT_DIR = REPO_ROOT / "data"
 # ─────────────────────────────────────────────────────────────────────────────
 
 

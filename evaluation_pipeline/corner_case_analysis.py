@@ -79,7 +79,14 @@ def required_columns() -> List[str]:
     return ["case_id", "dice_fg", "obj_count_error", "merge_rate", "split_rate"]
 
 def load_config(path: Path) -> Dict:
-    return json.loads(path.read_text())
+    cfg = json.loads(path.read_text())
+    base_dir = path.resolve().parent
+    for key, value in cfg.get("paths", {}).items():
+        if isinstance(value, str):
+            path_value = Path(value)
+            if not path_value.is_absolute():
+                cfg["paths"][key] = str(base_dir / path_value)
+    return cfg
 
 def analyze_model(
     df: pd.DataFrame,

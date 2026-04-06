@@ -37,9 +37,9 @@
       512,
       512
     ],
-    "batch_size": 12,
+    "batch_size": 4,
     "max_epochs": 1000,
-    "augmentation": false,
+    "augmentation": true,
     "early_stopping": {
       "patience": 50,
       "min_delta": 0.001
@@ -58,6 +58,7 @@
       0.6,
       0.7
     ],
+    "min_object_size_px": 10,
     "hd95_units": "pixels",
     "boundary_f1_tolerances": [
       2,
@@ -71,21 +72,21 @@
     ]
   },
   "paths": {
-    "data_root": "/home/s2292949/dissertation_resplit/data/cem_mitolab",
-    "splits_json": "/home/s2292949/dissertation_resplit/data/splits.json",
-    "nnunet_id_map": "/home/s2292949/dissertation_resplit/data/nnunet_id_map.json",
-    "dataset_stats": "/home/s2292949/dissertation_resplit/data/dataset_stats.csv",
-    "nnunet_raw": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw",
-    "nnunet_preproc": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_preprocessed",
-    "nnunet_results": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_results",
-    "instances_tr": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTr",
-    "instances_ts": "/home/s2292949/dissertation_resplit/nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs",
-    "predictions_unet": "/home/s2292949/dissertation_resplit/predictions/unet",
-    "predictions_nnunet": "/home/s2292949/dissertation_resplit/predictions/nnunet",
-    "results_dir": "/home/s2292949/dissertation_resplit/evaluation/results",
-    "figures_dir": "/home/s2292949/dissertation_resplit/figures",
-    "logs_dir": "/home/s2292949/dissertation_resplit/logs",
-    "unet_checkpoint": "/home/s2292949/dissertation_resplit/models/unet/checkpoints",
-    "unet_training_log": "/home/s2292949/dissertation_resplit/models/unet/checkpoints/training_log.csv"
+    "data_root": "data/cem_mitolab",
+    "splits_json": "data/splits.json",
+    "nnunet_id_map": "data/nnunet_id_map.json",
+    "dataset_stats": "data/dataset_stats.csv",
+    "nnunet_raw": "nnunet/nnUNet_raw",
+    "nnunet_preproc": "nnunet/nnUNet_preprocessed",
+    "nnunet_results": "nnunet/nnUNet_results",
+    "instances_tr": "nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTr",
+    "instances_ts": "nnunet/nnUNet_raw/Dataset001_Mitochondria/instancesTs",
+    "predictions_unet": "predictions/unet",
+    "predictions_nnunet": "predictions/nnunet",
+    "results_dir": "evaluation/results",
+    "figures_dir": "figures",
+    "logs_dir": "logs",
+    "unet_checkpoint": "models/unet/checkpoints",
+    "unet_training_log": "models/unet/checkpoints/training_log.csv"
   }
 }
