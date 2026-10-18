@@ -1,4 +1,30 @@
-# CEM-MitoLab Mitochondria Segmentation — Dissertation Code
+# Beyond Dice: Evaluating U-Net and nnU-Net for Mitochondria Segmentation Using Biologically Motivated Metrics
+
+Final-year dissertation, BEng Software Engineering, University of Edinburgh (2026). Supervisor: Dr. Eleonora D'Arnese.
+
+📄 [Read the dissertation (PDF)](Kawar_2026_Beyond_Dice.pdf)
+
+## Summary
+
+Segmentation models are usually compared with pixel-overlap metrics such as Dice. These metrics miss object-level errors (merged, split or miscounted mitochondria) that distort downstream biological analysis. This project trains a custom U-Net and nnU-Net on the CEM-MitoLab dataset under a shared, leakage-free source-level split and evaluates both with one pipeline spanning pixel, boundary, calibration and object-level metrics.
+
+## Key results (test set, 3,312 slices)
+
+| Metric | U-Net | nnU-Net |
+|---|---|---|
+| Foreground Dice | 0.578 | 0.624 |
+| Panoptic Quality (IoU > 0.5) | 0.459 | 0.544 |
+| Split rate | 0.091 | 0.041 |
+| Merge rate | 0.041 | 0.035 |
+
+- nnU-Net was better on all 27 metrics tested (all significant after Benjamini-Hochberg correction).
+- The object-level gap is larger than the pixel-level gap. In the densest slices, Dice is nearly equal (0.759 vs 0.763) while Panoptic Quality is not (0.419 vs 0.510).
+- Among high-Dice predictions (Dice > 0.85), 42.3% of U-Net slices and 38.1% of nnU-Net slices still had object-level errors.
+- U-Net failures are mainly fragmentation; nnU-Net failures are mainly merging.
+
+**Conclusion:** standard overlap metrics alone cannot distinguish these failure modes, so object-level evaluation is needed to judge models for biological use.
+
+# CEM-MitoLab Mitochondria Segmentation — Code
 
 This repo contains the code I wrote for my dissertation comparing a custom U-Net against nnU-Net on the CEM-MitoLab mitochondria segmentation dataset (EMPIAR-11037).
 
@@ -12,7 +38,9 @@ The point of this README is to explain where the data came from, how I processed
 - `unet_pipeline/` — custom U-Net training and prediction scripts
 - `evaluation_pipeline/` — per-image evaluation, corner-case analysis, statistical tests, and summary generation
 - `figures/` — scripts that generate the dissertation figures
-- `data/` — split files, metadata, and result CSVs/JSONs
+- `data/` — split files and dataset metadata
+- `evaluation/results/` — per-image results, aggregate metrics, corner cases, statistical tests and stratified analysis
+
 
 The `data/` folder also contains older copies of the data preparation scripts from early in the project (`create_nnunet_format.py`, `dataset_stats.py`, `inspect_dataset.py`). For replication, use the versions in `data_preparation/`.
 
